@@ -25,19 +25,14 @@ const router = createRouter({
           component: () => import('@/views/Customers.vue')
         },
         {
-          path: 'leads',
-          name: 'Leads',
-          component: () => import('@/views/Leads.vue')
+          path: 'products',
+          name: 'Products',
+          component: () => import('@/views/Products.vue')
         },
         {
-          path: 'activities',
-          name: 'Activities',
-          component: () => import('@/views/Activities.vue')
-        },
-        {
-          path: 'tasks',
-          name: 'Tasks',
-          component: () => import('@/views/Tasks.vue')
+          path: 'orders',
+          name: 'Orders',
+          component: () => import('@/views/Orders.vue')
         }
       ]
     }
@@ -45,10 +40,10 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
   authStore.initAuth()
-  
+
   if (to.path !== '/login' && !authStore.isAuthenticated()) {
     next('/login')
   } else if (to.path === '/login' && authStore.isAuthenticated()) {

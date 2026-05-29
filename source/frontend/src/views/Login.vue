@@ -115,7 +115,7 @@ const registerForm = ref({
   role: 'sales' as 'admin' | 'sales'
 })
 
-const getBubbleStyle = (index: number) => {
+const getBubbleStyle = (_index: number) => {
   const size = Math.random() * 60 + 20
   const left = Math.random() * 100
   const delay = Math.random() * 5

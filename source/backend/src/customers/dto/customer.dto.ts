@@ -1,29 +1,21 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateCustomerDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: '客户名称不能为空' })
   name: string;
 
   @IsString()
-  @IsNotEmpty()
-  phone: string;
+  @IsOptional()
+  contact?: string;
 
   @IsString()
   @IsOptional()
-  company?: string;
+  phone?: string;
 
   @IsString()
   @IsOptional()
-  source?: string;
-
-  @IsArray()
-  @IsOptional()
-  tags?: string[];
-
-  @IsString()
-  @IsOptional()
-  remarks?: string;
+  address?: string;
 }
 
 export class UpdateCustomerDto {
@@ -33,21 +25,13 @@ export class UpdateCustomerDto {
 
   @IsString()
   @IsOptional()
+  contact?: string;
+
+  @IsString()
+  @IsOptional()
   phone?: string;
 
   @IsString()
   @IsOptional()
-  company?: string;
-
-  @IsString()
-  @IsOptional()
-  source?: string;
-
-  @IsArray()
-  @IsOptional()
-  tags?: string[];
-
-  @IsString()
-  @IsOptional()
-  remarks?: string;
+  address?: string;
 }

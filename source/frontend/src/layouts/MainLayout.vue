@@ -11,17 +11,13 @@
           <template #icon><t-icon name="user" /></template>
           客户管理
         </t-menu-item>
-        <t-menu-item value="leads">
-          <template #icon><t-icon name="chart-line" /></template>
-          线索管理
+        <t-menu-item value="products">
+          <template #icon><t-icon name="gift" /></template>
+          产品管理
         </t-menu-item>
-        <t-menu-item value="activities">
-          <template #icon><t-icon name="time" /></template>
-          跟进记录
-        </t-menu-item>
-        <t-menu-item value="tasks">
-          <template #icon><t-icon name="bulletpoint" /></template>
-          任务管理
+        <t-menu-item value="orders">
+          <template #icon><t-icon name="order" /></template>
+          订单管理
         </t-menu-item>
       </t-menu>
     </t-aside>
@@ -78,9 +74,8 @@ const getPageTitle = () => {
   const titles: Record<string, string> = {
     dashboard: '数据大屏',
     customers: '客户管理',
-    leads: '线索管理',
-    activities: '跟进记录',
-    tasks: '任务管理'
+    products: '产品管理',
+    orders: '订单管理'
   }
   return titles[activeMenu.value] || 'NO-CRM'
 }

@@ -1,138 +1,177 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { JsonStorageService } from '../common/json-storage.service';
-import { Customer } from '../common/interfaces';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Customer } from '../common/database/entities/customer.entity';
+import { Order } from '../common/database/entities/order.entity';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly storageService: JsonStorageService) {}
+  constructor(
+    @InjectRepository(Customer)
+    private readonly customerRepository: Repository<Customer>,
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
+  ) {}
 
-  create(createCustomerDto: CreateCustomerDto, userId: string): Customer {
-    const customer: Customer = {
-      id: uuidv4(),
-      ...createCustomerDto,
-      ownerId: userId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    return this.storageService.create('customers', customer);
-  }
-
-  findAll(userId: string, userRole: string): Customer[] {
-    const customers = this.storageService.read<Customer>('customers');
-    
-    // 管理员可以查看所有客户，销售只能看自己的
-    if (userRole === 'admin') {
-      return customers;
+  async create(createCustomerDto: CreateCustomerDto): Promise<Customer> {
+    // 检查客户名称是否已存在（防重校验）
+    const existing = await this.customerRepository.findOne({ where: { name: createCustomerDto.name } });
+    if (existing) {
+      throw new ConflictException('客户名称已存在');
     }
-    
-    return customers.filter(customer => customer.ownerId === userId);
+
+    // 自动生成客户编号: CUST-YYYYMMDD-XXXX
+    const code = await this.generateCustomerCode();
+
+    const customer = this.customerRepository.create({
+      ...createCustomerDto,
+      code,
+    });
+
+    return this.customerRepository.save(customer);
   }
 
-  findAllPaginated(userId: string, userRole: string, page: number = 1, pageSize: number = 10) {
-    const customers = this.findAll(userId, userRole);
-    return this.storageService.paginate(customers, page, pageSize);
+  async findAll(
+    keyword?: string,
+    page: number = 1,
+    pageSize: number = 10,
+  ): Promise<{ data: any[]; total: number; page: number; pageSize: number }> {
+    const queryBuilder = this.customerRepository.createQueryBuilder('customer');
+
+    if (keyword) {
+      queryBuilder.where(
+        'customer.name LIKE :keyword OR customer.phone LIKE :keyword OR customer.contact LIKE :keyword',
+        { keyword: `%${keyword}%` },
+      );
+    }
+
+    queryBuilder.orderBy('customer.createdAt', 'DESC');
+    queryBuilder.skip((page - 1) * pageSize);
+    queryBuilder.take(pageSize);
+
+    const [customers, total] = await queryBuilder.getManyAndCount();
+
+    // 获取每个客户的订单统计
+    const data = await Promise.all(
+      customers.map(async (customer) => {
+        const orderStats = await this.getCustomerOrderStats(customer.id);
+        return {
+          ...customer,
+          orderCount: orderStats.orderCount,
+          totalConsumption: orderStats.totalConsumption,
+          outstandingAmount: orderStats.outstandingAmount,
+        };
+      }),
+    );
+
+    return { data, total, page, pageSize };
   }
 
-  findOne(id: string, userId: string, userRole: string): Customer {
-    const customer = this.storageService.findById<Customer>('customers', id);
-    
+  async findOne(id: number): Promise<Customer> {
+    const customer = await this.customerRepository.findOne({ where: { id } });
     if (!customer) {
       throw new NotFoundException('客户不存在');
     }
-
-    // 验证权限
-    if (userRole !== 'admin' && customer.ownerId !== userId) {
-      throw new ForbiddenException('无权访问此客户');
-    }
-
     return customer;
   }
 
-  update(id: string, updateCustomerDto: UpdateCustomerDto, userId: string, userRole: string): Customer {
-    const customer = this.findOne(id, userId, userRole);
+  async update(id: number, updateCustomerDto: UpdateCustomerDto): Promise<Customer> {
+    const customer = await this.findOne(id);
 
-    const updated = this.storageService.update<Customer>('customers', id, {
-      ...updateCustomerDto,
-      updatedAt: new Date().toISOString(),
-    } as Partial<Customer>);
-
-    if (!updated) {
-      throw new NotFoundException('更新失败');
+    // 如果修改了名称，检查是否与其他客户重名
+    if (updateCustomerDto.name && updateCustomerDto.name !== customer.name) {
+      const existing = await this.customerRepository.findOne({ where: { name: updateCustomerDto.name } });
+      if (existing) {
+        throw new ConflictException('客户名称已存在');
+      }
     }
 
-    return updated;
+    Object.assign(customer, updateCustomerDto);
+    return this.customerRepository.save(customer);
   }
 
-  remove(id: string, userId: string, userRole: string): void {
-    const customer = this.findOne(id, userId, userRole);
-    
-    const deleted = this.storageService.delete('customers', id);
-    if (!deleted) {
-      throw new NotFoundException('删除失败');
-    }
-  }
+  async remove(id: number): Promise<void> {
+    const customer = await this.findOne(id);
 
-  search(keyword: string, userId: string, userRole: string): Customer[] {
-    const customers = this.findAll(userId, userRole);
-    
-    if (!keyword) return customers;
+    // 检查是否有未完成的订单
+    const incompleteOrderCount = await this.orderRepository.count({
+      where: {
+        customerId: id,
+        orderStatus: '已完成', // 只允许在"已完成"状态时删除客户
+      },
+    });
 
-    const lowerKeyword = keyword.toLowerCase();
-    return customers.filter(customer => 
-      customer.name.toLowerCase().includes(lowerKeyword) ||
-      customer.phone.includes(keyword) ||
-      customer.company?.toLowerCase().includes(lowerKeyword)
-    );
-  }
+    // 实际上 BR.md 要求：有未完成的订单则阻止删除
+    const totalOrderCount = await this.orderRepository.count({
+      where: { customerId: id },
+    });
 
-  searchPaginated(keyword: string, userId: string, userRole: string, page: number = 1, pageSize: number = 10) {
-    const results = this.search(keyword, userId, userRole);
-    return this.storageService.paginate(results, page, pageSize);
-  }
+    const completedOrderCount = await this.orderRepository.count({
+      where: { customerId: id, orderStatus: '已完成' },
+    });
 
-  generateMockData(count: number, userId: string): number {
-    const names = ['张三', '李四', '王五', '赵六', '刘七', '陈八', '周九', '吴十', '郑十一', '孙十二'];
-    const companies = ['阿里巴巴', '腾讯科技', '百度公司', '字节跳动', '京东集团', '美团', '小米科技', '华为技术', '滴滴出行', '网易公司'];
-    const sources = ['网络推广', '朋友介绍', '线下活动', '电话联系', '官网咨询'];
-    const tagOptions = ['重点客户', '意向客户', '老客户', '高价值', '需要跟进'];
-
-    for (let i = 0; i < count; i++) {
-      const customer: Customer = {
-        id: uuidv4(),
-        name: names[Math.floor(Math.random() * names.length)] + (i + 1),
-        phone: `1${Math.floor(Math.random() * 9) + 3}${Math.floor(Math.random() * 100000000).toString().padStart(9, '0')}`,
-        company: companies[Math.floor(Math.random() * companies.length)],
-        source: sources[Math.floor(Math.random() * sources.length)],
-        tags: [tagOptions[Math.floor(Math.random() * tagOptions.length)]],
-        remarks: `这是一条Mock数据，用于测试。编号: ${i + 1}`,
-        ownerId: userId,
-        createdAt: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      this.storageService.create('customers', customer);
+    if (totalOrderCount > completedOrderCount) {
+      throw new BadRequestException('该客户名下存在未完成的订单，无法删除');
     }
 
-    return count;
+    await this.customerRepository.remove(customer);
   }
 
-  clearMockData(userId: string, userRole: string): number {
-    const customers = this.storageService.read<Customer>('customers');
-    const beforeCount = customers.length;
-    
-    let filteredCustomers: Customer[];
-    if (userRole === 'admin') {
-      // 管理员清空所有数据
-      filteredCustomers = [];
-    } else {
-      // 销售只清空自己的数据
-      filteredCustomers = customers.filter(c => c.ownerId !== userId);
+  async getCustomerOrders(id: number): Promise<Order[]> {
+    const customer = await this.findOne(id);
+    return this.orderRepository.find({
+      where: { customerId: customer.id },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * 生成客户编号: CUST-YYYYMMDD-XXXX
+   */
+  private async generateCustomerCode(): Promise<string> {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const prefix = `CUST-${dateStr}-`;
+
+    // 查找当天最后一个编号
+    const lastCustomer = await this.customerRepository
+      .createQueryBuilder('customer')
+      .where('customer.code LIKE :prefix', { prefix: `${prefix}%` })
+      .orderBy('customer.code', 'DESC')
+      .getOne();
+
+    let seq = 1;
+    if (lastCustomer) {
+      const lastSeq = parseInt(lastCustomer.code.slice(-4), 10);
+      seq = lastSeq + 1;
     }
-    
-    this.storageService.write('customers', filteredCustomers);
-    return beforeCount - filteredCustomers.length;
+
+    return `${prefix}${seq.toString().padStart(4, '0')}`;
+  }
+
+  /**
+   * 获取客户订单统计信息
+   */
+  private async getCustomerOrderStats(customerId: number): Promise<{
+    orderCount: number;
+    totalConsumption: number;
+    outstandingAmount: number;
+  }> {
+    const orders = await this.orderRepository.find({ where: { customerId } });
+
+    const totalConsumption = orders
+      .filter((o) => o.orderStatus !== '已取消')
+      .reduce((sum, o) => sum + Number(o.totalAmount), 0);
+
+    const receivedAmount = orders
+      .filter((o) => o.orderStatus !== '已取消')
+      .reduce((sum, o) => sum + Number(o.receivedAmount), 0);
+
+    return {
+      orderCount: orders.filter((o) => o.orderStatus !== '已取消').length,
+      totalConsumption,
+      outstandingAmount: totalConsumption - receivedAmount,
+    };
   }
 }

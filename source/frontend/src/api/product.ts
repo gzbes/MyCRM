@@ -48,5 +48,9 @@ export const productApi = {
 
   delete(id: number) {
     return api.delete(`/products/${id}`)
+  },
+
+  toggleStatus(id: number) {
+    return api.patch<any, Product>(`/products/${id}/toggle-status`)
   }
 }

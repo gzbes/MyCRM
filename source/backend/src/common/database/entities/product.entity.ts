@@ -1,6 +1,8 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
 @Entity('products')
+@Index('idx_name', ['name'])
+@Index('idx_status', ['status'])
 export class Product {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id: number;

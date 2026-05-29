@@ -267,14 +267,50 @@ source/
 | 取消自动设开票为"无需开票" | 后端自动 | ✓ |
 | 未取消不允许设开票为"无需开票" | 后端 400 | ✓ |
 | 收款结清需金额≥订单总额 | 后端 400 | ✓ |
-| 部分收款需金额>0且<总额 | 后端 400 | ✓ |
-| 有已收金额不能设未收款 | 后端 400 | ✓ |
+| 部分收款需 0<金额<订单总额 | 后端 400 | ✓ |
+| 已有收款记录不允许设为未收款 | 后端 400 | ✓ |
 | 仅待处理订单可删除 | 后端 400 | ✓ |
-| 仅待处理/生产中可修改 | 后端 400 | ✓ |
+| 仅待处理/生产中订单可修改 | 后端 400 | ✓ |
 
-**关键交付：**
-- 后端构建 ✓，前端构建 ✓
-- 管理员账号：admin@no-crm.com / admin123
-- 迁移脚本：`cd source/backend && npm run migrate`
-- 种子脚本：`cd source/backend && npm run seed`
-- Phase 2 测试：`cd source/backend && node test-phase2.mjs` (19/19 通过)
+### Phase 2 安全审计
+
+| 子任务 | 状态 | 说明 |
+|-------|------|------|
+| 移除硬编码 DB 密码 | ✓ | database.module.ts / seed.ts / migrate-data.ts |
+| 移除硬编码 JWT 密钥 | ✓ | auth.module.ts / jwt.strategy.ts |
+| synchronize 环境感知 | ✓ | `synchronize: process.env.NODE_ENV !== 'production'` |
+| .env.example 模板 | ✓ | 占位符，随 .env 同步更新 |
+| .gitignore 加固 | ✓ | 排除 .env / 临时文件 / 工件 |
+| CLAUDE.md 安全规范 | ✓ | 禁止硬编码 + 提交前检查清单 |
+| 人工验收文档 | ✓ | 56 个验收用例（Phase 1: 10 + Phase 2: 46） |
+
+---
+
+## 九、Phase 3 启动指南
+
+### 接下来要做的事情（5 个子任务，预估 4-5 天）
+
+| 编号 | 任务 | 文件 | 说明 |
+|------|------|------|------|
+| 3.1 | 报表后端 API | `backend/src/reports/` | 4 个统计接口（产品/客户/时间段/状态汇总） |
+| 3.2 | 报表前端 ECharts | `frontend/src/views/Reports.vue` | 柱状图+折线图+饼图+表格 |
+| 3.3 | CSV 导出 | `reports.service.ts` | 后端生成 CSV 流，前端触发下载 |
+| 3.4 | PDF 对账单 | `reports.service.ts` | pdfkit/puppeteer 生成 |
+| 3.5 | 仪表盘经营概览 | `frontend/src/views/Dashboard.vue` | 替换为关键指标卡片+迷你趋势图 |
+
+### 快速启动命令
+
+```bash
+# 启动后端（端口 3000）
+cd source/backend && npm run start:dev
+
+# 启动前端（端口 5173）
+cd source/frontend && npm run dev
+
+# 运行 Phase 3 测试
+node test-phase3.mjs
+
+# 构建检查
+cd source/backend && npx nest build
+cd source/frontend && npx vue-tsc --noEmit
+```

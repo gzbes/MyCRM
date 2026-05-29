@@ -5,6 +5,8 @@ import { DatabaseModule } from './common/database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { CustomersModule } from './customers/customers.module';
 import { ProductsModule } from './products/products.module';
+import { OrdersModule } from './orders/orders.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { ProductsModule } from './products/products.module';
     AuthModule,
     CustomersModule,
     ProductsModule,
+    OrdersModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

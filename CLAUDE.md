@@ -170,6 +170,44 @@ FlowCRM 原项目使用 **JSON 文件存储**，本项目改造为 **MySQL 8.0 +
 - 遇到阻塞项（如 ECharts 图表配置、文件上传预览）及时记录，集中解决
 - Phase 1-2 优先上线，Phase 3 可延后
 
+### 安全规范（提交代码前必须检查）
+
+#### 禁止提交到 Git 的内容
+- `.env` 文件（已加入 `.gitignore`，包含数据库密码、JWT 密钥等敏感信息）
+- 任何包含真实密码、API Key、Token、密钥的文件
+- `templogin_response.json` 等临时文件（可能包含 JWT Token）
+- IDE 配置文件（`.vscode/`, `.idea/` 等）
+- `node_modules/`、`dist/` 等构建产物
+
+#### 硬编码密码/密钥禁令
+- **禁止**在 `.ts` / `.vue` 文件中硬编码任何形式的密码、密钥、Token 作为 fallback
+- 所有敏感配置必须通过 `.env` 环境变量传入
+- 如果环境变量缺失，应当让程序启动失败（抛异常），而非使用硬编码默认值
+- 示例：
+  ```typescript
+  // ❌ 禁止: 硬编码 fallback
+  password: process.env.DB_PASSWORD || 'Abc@123456',
+  secret: process.env.JWT_SECRET || 'mycrm-jwt-secret-2026',
+
+  // ✅ 正确: 环境变量缺失时启动失败
+  password: process.env.DB_PASSWORD,
+  secret: process.env.JWT_SECRET,
+  ```
+
+#### 提交前自我检查清单
+1. 运行 `git diff --cached` 检查暂存区，确认无密码/密钥/Token
+2. 运行 `git diff --name-only` 确认无临时文件被包含
+3. 确认 `.env.example` 同步更新（如有新增环境变量）
+4. 确认 `synchronize: true` 受 `NODE_ENV` 保护（仅开发环境可用）
+5. 运行 `git status` 确认无意外文件被跟踪
+
+#### 已有问题的处理
+- 如果发现已提交的代码中包含密码/密钥，立即：
+  1. 从源代码中移除硬编码值，改用环境变量
+  2. 将 `.env` 加入 `.gitignore`（如未加）
+  3. 通知团队所有成员更换泄露的密码/密钥
+  4. 考虑轮换所有已泄露的凭据
+
 ---
 
 ## 七、文件结构（关键路径）

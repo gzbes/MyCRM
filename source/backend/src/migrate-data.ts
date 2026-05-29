@@ -47,7 +47,7 @@ async function migrate() {
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT) || 3306,
     username: process.env.DB_USERNAME || 'root',
-    password: process.env.DB_PASSWORD || 'Abc@123456',
+    password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE || 'mycrm',
     entities: [User, Customer, Product, Order, OrderItem, StatusLog, Attachment],
     synchronize: false,

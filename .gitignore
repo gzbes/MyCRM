@@ -143,3 +143,7 @@ vite.config.ts.timestamp-*
 
 # Windows artifact files
 nul
+
+# Temp / artifact files
+templogin_response.json
+temp_*.json

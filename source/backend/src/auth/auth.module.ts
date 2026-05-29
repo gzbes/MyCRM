@@ -11,7 +11,7 @@ import { User } from '../common/database/entities/user.entity';
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'mycrm-jwt-secret-2026',
+      secret: process.env.JWT_SECRET as string,
       signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN || '24h') as any },
     }),
     TypeOrmModule.forFeature([User]),

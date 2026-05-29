@@ -17,10 +17,10 @@ const entities = [User, Customer, Product, Order, OrderItem, StatusLog, Attachme
       host: process.env.DB_HOST || 'localhost',
       port: Number(process.env.DB_PORT) || 3306,
       username: process.env.DB_USERNAME || 'root',
-      password: process.env.DB_PASSWORD || 'Abc@123456',
+      password: process.env.DB_PASSWORD as string,
       database: process.env.DB_DATABASE || 'mycrm',
       entities: entities,
-      synchronize: true, // 开发阶段自动建表，生产环境应关闭
+      synchronize: process.env.NODE_ENV !== 'production',
       charset: 'utf8mb4',
     }),
   ],

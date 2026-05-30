@@ -1,172 +1,233 @@
 <template>
   <div class="dashboard-page">
-    <div class="dashboard-header">
-      <h1>数据大屏</h1>
-      <div class="refresh-info">
-        <span>最后更新：{{ lastUpdateTime }}</span>
-        <t-button theme="primary" size="small" @click="refreshData" :loading="loading">
-          <template #icon><t-icon name="refresh" /></template>
-          刷新数据
+    <!-- 欢迎横幅 -->
+    <div class="welcome-banner">
+      <div class="welcome-text">
+        <h1>早上好/下午好，{{ authStore.user?.name || '用户' }}</h1>
+        <p>今天是 {{ todayStr }}，以下是您的经营概况</p>
+      </div>
+      <div class="quick-actions">
+        <t-button theme="primary" @click="goTo('/customers')">
+          <template #icon><t-icon name="user" /></template>
+          新建客户
+        </t-button>
+        <t-button theme="success" @click="goTo('/products')">
+          <template #icon><t-icon name="gift" /></template>
+          新建产品
+        </t-button>
+        <t-button theme="warning" @click="goTo('/orders/new')">
+          <template #icon><t-icon name="order" /></template>
+          新建订单
         </t-button>
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-cards">
-      <div class="stat-card" v-for="(stat, index) in statsCards" :key="index" :style="{ animationDelay: `${index * 0.1}s` }">
+    <!-- 关键指标卡片 -->
+    <div class="stats-cards" v-if="!loading">
+      <div class="stat-card" v-for="(stat, index) in statsCards" :key="index">
         <div class="stat-icon" :style="{ background: stat.color }">
-          <t-icon :name="stat.icon" size="32px" />
+          <t-icon :name="stat.icon" size="28px" />
         </div>
-        <div class="stat-content">
+        <div class="stat-info">
           <div class="stat-value">{{ stat.value }}</div>
           <div class="stat-label">{{ stat.label }}</div>
         </div>
       </div>
     </div>
 
-    <!-- 图表区域 -->
-    <div class="charts-container">
-      <div class="chart-row">
-        <div class="chart-card chart-large">
-          <div class="chart-header">
-            <h3>最近7天数据趋势</h3>
-          </div>
-          <div ref="trendChartRef" class="chart-content"></div>
-        </div>
+    <!-- 近7天营收趋势 -->
+    <div class="chart-section">
+      <div class="section-header">
+        <h3>近7天营收趋势</h3>
+        <t-button theme="default" size="small" @click="goTo('/reports')">查看完整报表</t-button>
       </div>
+      <div v-if="loading" class="loading-wrap"><t-loading /></div>
+      <div v-else ref="trendChartRef" class="trend-chart"></div>
     </div>
+
+    <!-- 快捷订单列表 -->
+    <div class="section-header" style="margin-top: 24px">
+      <h3>待处理订单</h3>
+      <t-button theme="default" size="small" @click="goTo('/orders')">查看全部</t-button>
+    </div>
+    <t-table
+      :data="pendingOrders"
+      :columns="orderColumns"
+      row-key="id"
+      size="small"
+      stripe
+      :loading="orderLoading"
+      :empty="orderLoading ? undefined : '暂无待处理订单'"
+    >
+      <template #orderStatus="{ row }">
+        <t-tag :theme="statusTheme(row.orderStatus)" variant="light">{{ row.orderStatus }}</t-tag>
+      </template>
+      <template #totalAmount="{ row }">¥{{ Number(row.totalAmount).toFixed(2) }}</template>
+      <template #actions="{ row }">
+        <t-button theme="primary" size="small" @click="goTo(`/orders/${row.id}`)">查看详情</t-button>
+      </template>
+    </t-table>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import * as echarts from 'echarts'
-import { statisticsApi, type StatisticsData } from '@/api/statistics'
-import { MessagePlugin } from 'tdesign-vue-next'
+import api from '@/api'
+import { reportsApi } from '@/api/reports'
+
+const router = useRouter()
+const authStore = useAuthStore()
+const todayStr = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
 
 const loading = ref(false)
-const lastUpdateTime = ref('')
-const statsData = ref<StatisticsData | null>(null)
-
+const orderLoading = ref(false)
 const trendChartRef = ref<HTMLElement>()
-
 let trendChart: echarts.ECharts | null = null
 
+// ── 关键指标 ──
 const statsCards = ref([
-  { icon: 'user', label: '客户总数', value: 0, color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
-  { icon: 'gift', label: '产品总数', value: 0, color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
-  { icon: 'order', label: '订单总数', value: 0, color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
-  { icon: 'money', label: '本月订单金额', value: '¥0', color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }
+  { icon: 'order', label: '今日新增订单', value: '-', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+  { icon: 'money', label: '本月营收', value: '-', color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' },
+  { icon: 'time', label: '待处理订单', value: '-', color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+  { icon: 'usergroup', label: '累计客户', value: '-', color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
 ])
 
-const loadData = async () => {
+// ── 待处理订单 ──
+const pendingOrders = ref<any[]>([])
+
+const orderColumns = [
+  { colKey: 'code', title: '订单编号', width: 180 },
+  { colKey: 'customerName', title: '客户', width: 120 },
+  { colKey: 'orderDate', title: '日期', width: 110 },
+  { colKey: 'orderStatus', title: '状态', width: 100 },
+  { colKey: 'totalAmount', title: '金额', width: 120 },
+  { colKey: 'actions', title: '操作', width: 100 },
+]
+
+function statusTheme(status: string) {
+  const map: Record<string, string> = {
+    '待处理': 'warning',
+    '生产中': 'primary',
+    '已发货': 'success',
+    '已完成': 'default',
+    '已取消': 'danger',
+  }
+  return map[status] || 'default'
+}
+
+function goTo(path: string) {
+  router.push(path)
+}
+
+// ── 加载数据 ──
+async function loadDashboard() {
   loading.value = true
+  let timeData: Awaited<ReturnType<typeof reportsApi.getByTime>> = []
   try {
-    statsData.value = await statisticsApi.getOverview()
+    // 获取营收趋势
+    timeData = await reportsApi.getByTime({
+      startDate: new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10),
+      endDate: new Date().toISOString().slice(0, 10),
+      groupBy: 'day',
+    })
 
-    // 更新统计卡片
-    statsCards.value[0].value = statsData.value.totalCustomers
-    statsCards.value[1].value = statsData.value.totalProducts
-    statsCards.value[2].value = statsData.value.totalOrders
-    statsCards.value[3].value = `¥${statsData.value.monthlyOrderAmount.toFixed(2)}`
+    // 获取订单列表统计
+    const today = new Date().toISOString().slice(0, 10)
+    const thisMonth = today.slice(0, 7)
 
-    // 更新时间
-    lastUpdateTime.value = new Date().toLocaleString('zh-CN')
+    // 获取所有订单（分页获取前100条）
+    const [allOrders, pendingRes] = await Promise.all([
+      api.get<any, { data: any[]; total: number }>('/orders', { params: { pageSize: 100 } }),
+      api.get<any, { data: any[]; total: number }>('/orders', { params: { orderStatus: '待处理', pageSize: 20 } }),
+    ])
 
-    // 初始化图表
-    initCharts()
-  } catch (error) {
-    MessagePlugin.error('加载数据失败')
+    const orders = allOrders.data || []
+
+    // 今日新增
+    const todayOrders = orders.filter((o: any) => o.orderDate === today)
+    statsCards.value[0].value = String(todayOrders.length)
+
+    // 本月营收
+    const monthOrders = orders.filter((o: any) => o.orderDate && o.orderDate.startsWith(thisMonth))
+    const monthRevenue = monthOrders.reduce((s: number, o: any) => s + Number(o.totalAmount || 0), 0)
+    statsCards.value[1].value = `¥${monthRevenue.toFixed(2)}`
+
+    // 待处理订单数
+    statsCards.value[2].value = String(pendingRes.total || 0)
+
+    // 累计客户数（从客户列表取）
+    try {
+      const customerRes = await api.get<any, { total: number }>('/customers', { params: { pageSize: 1 } })
+      statsCards.value[3].value = String(customerRes.total || '-')
+    } catch {
+      statsCards.value[3].value = String('-')
+    }
+
+    pendingOrders.value = (pendingRes.data || []).map((o: any) => ({
+      ...o,
+      customerName: o.customer?.name || '-',
+    }))
+  } catch (e) {
+    console.error('[Dashboard] loadDashboard error:', e)
   } finally {
     loading.value = false
   }
-}
-
-const refreshData = () => {
-  loadData()
-}
-
-const initCharts = () => {
-  if (!statsData.value) return
-
-  // 趋势图
-  if (trendChartRef.value) {
-    if (trendChart) trendChart.dispose()
-    trendChart = echarts.init(trendChartRef.value)
-    trendChart.setOption({
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' }
-      },
-      legend: {
-        data: ['订单数', '金额'],
-        top: 10
-      },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '3%',
-        top: '15%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'category',
-        data: statsData.value.recentTrend.map(t => t.date),
-        axisLine: { lineStyle: { color: '#999' } }
-      },
-      yAxis: [
-        {
-          type: 'value',
-          name: '订单数',
-          axisLine: { lineStyle: { color: '#999' } },
-          splitLine: { lineStyle: { color: '#f0f0f0' } }
-        },
-        {
-          type: 'value',
-          name: '金额',
-          axisLine: { lineStyle: { color: '#999' } },
-          splitLine: { show: false }
-        }
-      ],
-      series: [
-        {
-          name: '订单数',
-          type: 'bar',
-          data: statsData.value.recentTrend.map(t => t.count),
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#667eea' },
-              { offset: 1, color: '#764ba2' }
-            ])
-          },
-          barWidth: '40%'
-        },
-        {
-          name: '金额',
-          type: 'line',
-          yAxisIndex: 1,
-          smooth: true,
-          data: statsData.value.recentTrend.map(t => t.amount),
-          itemStyle: { color: '#43e97b' },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(67, 233, 123, 0.3)' },
-              { offset: 1, color: 'rgba(67, 233, 123, 0.05)' }
-            ])
-          }
-        }
-      ]
-    })
+  // 释放 loading 后等待 DOM 更新，再渲染图表
+  if (timeData.length > 0) {
+    await nextTick()
+    renderTrendChart(timeData)
   }
 }
 
-// 响应式调整
-const handleResize = () => {
-  trendChart?.resize()
+function renderTrendChart(data: { period: string; receivedAmount: number }[]) {
+  if (!trendChartRef.value) return
+  if (trendChart) trendChart.dispose()
+  trendChart = echarts.init(trendChartRef.value)
+
+  trendChart.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '5%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: data.map(r => r.period.slice(5)),
+      axisLine: { lineStyle: { color: '#ddd' } },
+    },
+    yAxis: {
+      type: 'value',
+      name: '金额 (¥)',
+      splitLine: { lineStyle: { color: '#f0f0f0' } },
+    },
+    series: [
+      {
+        type: 'line',
+        smooth: true,
+        data: data.map(r => r.receivedAmount),
+        itemStyle: { color: '#43e97b' },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(67, 233, 123, 0.3)' },
+            { offset: 1, color: 'rgba(67, 233, 123, 0.05)' },
+          ]),
+        },
+        symbol: 'circle',
+        symbolSize: 6,
+        label: {
+          show: true,
+          formatter: (p: any) => `¥${p.value.toFixed(0)}`,
+          fontSize: 10,
+        },
+      },
+    ],
+  })
 }
 
+const handleResize = () => trendChart?.resize()
+
 onMounted(() => {
-  loadData()
+  loadDashboard()
   window.addEventListener('resize', handleResize)
 })
 
@@ -183,132 +244,126 @@ onUnmounted(() => {
   padding: 24px;
 }
 
-.dashboard-header {
+/* 欢迎横幅 */
+.welcome-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 28px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: #fff;
   margin-bottom: 24px;
 }
 
-.dashboard-header h1 {
-  font-size: 28px;
-  font-weight: 600;
-  color: #1a1a1a;
+.welcome-text h1 {
   margin: 0;
+  font-size: 24px;
+  font-weight: 600;
 }
 
-.refresh-info {
+.welcome-text p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.quick-actions {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  color: #666;
+  gap: 12px;
+}
+
+.quick-actions .t-button {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* 统计卡片 */
 .stats-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .stat-card {
   background: #fff;
   border-radius: 12px;
-  padding: 24px;
+  padding: 20px;
   display: flex;
   align-items: center;
-  gap: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-  animation: fadeInUp 0.5s ease-out;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  gap: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .stat-icon {
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
+  flex-shrink: 0;
 }
 
-.stat-content {
+.stat-info {
   flex: 1;
+  min-width: 0;
 }
 
 .stat-value {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 700;
   color: #1a1a1a;
-  line-height: 1;
-  margin-bottom: 8px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #666;
+  font-size: 13px;
+  color: #999;
+  margin-top: 4px;
 }
 
-/* 图表容器 */
-.charts-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.chart-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-}
-
-.chart-card {
+/* 图表区域 */
+.chart-section {
   background: #fff;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  animation: fadeIn 0.6s ease-out;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.chart-header {
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 16px;
 }
 
-.chart-header h3 {
+.section-header h3 {
+  margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: #1a1a1a;
-  margin: 0;
 }
 
-.chart-content {
-  height: 300px;
+.trend-chart {
+  width: 100%;
+  height: 260px;
+}
+
+.loading-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
 }
 </style>

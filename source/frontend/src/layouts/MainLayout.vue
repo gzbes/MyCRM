@@ -5,7 +5,7 @@
       <t-menu :value="activeMenu" @change="handleMenuChange">
         <t-menu-item value="dashboard">
           <template #icon><t-icon name="dashboard" /></template>
-          数据大屏
+          经营概览
         </t-menu-item>
         <t-menu-item value="customers">
           <template #icon><t-icon name="user" /></template>
@@ -18,6 +18,10 @@
         <t-menu-item value="orders">
           <template #icon><t-icon name="order" /></template>
           订单管理
+        </t-menu-item>
+        <t-menu-item value="reports">
+          <template #icon><t-icon name="chart" /></template>
+          报表中心
         </t-menu-item>
       </t-menu>
     </t-aside>
@@ -72,10 +76,11 @@ const handleLogout = () => {
 
 const getPageTitle = () => {
   const titles: Record<string, string> = {
-    dashboard: '数据大屏',
+    dashboard: '经营概览',
     customers: '客户管理',
     products: '产品管理',
-    orders: '订单管理'
+    orders: '订单管理',
+    reports: '报表中心'
   }
   return titles[activeMenu.value] || 'NO-CRM'
 }

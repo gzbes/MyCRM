@@ -145,5 +145,5 @@ vite.config.ts.timestamp-*
 nul
 
 # Temp / artifact files
-templogin_response.json
+*templogin*
 temp_*.json

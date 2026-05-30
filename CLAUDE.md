@@ -241,10 +241,10 @@ source/
 ## 八、当前状态
 
 <!-- 开发过程中请更新此处 -->
-- **当前阶段：** Phase 2 — 核心业务开发（已完成）
-- **当前任务：** Phase 3 — 报表赋能
-- **完成进度：** 17 / 26 天
-- **最后更新：** 2026-05-29
+- **当前阶段：** Phase 3 — 报表赋能（已完成）
+- **当前任务：** Phase 4 — 部署与运维（待启动）
+- **完成进度：** 21 / 26 天
+- **最后更新：** 2026-05-30
 
 ### Phase 2 完成总结
 
@@ -284,19 +284,45 @@ source/
 | CLAUDE.md 安全规范 | ✓ | 禁止硬编码 + 提交前检查清单 |
 | 人工验收文档 | ✓ | 56 个验收用例（Phase 1: 10 + Phase 2: 46） |
 
+### Phase 3 完成总结
+
+| 子任务 | 状态 | 说明 |
+|-------|------|------|
+| 3.1 报表后端 API | ✓ | 4 个统计接口 + CSV 导出 + PDF 对账单（6 端点全部通过 curl 验证） |
+| 3.2 报表前端 ECharts | ✓ | Reports.vue (4 Tab: 产品排行柱状图/客户对账单/营收趋势组合图/状态饼图) |
+| 3.3 CSV 导出 | ✓ | 后端生成带 BOM 的 CSV，前端 fetch 触发下载（4 种类型） |
+| 3.4 PDF 对账单 | ✓ | pdfkit 生成含客户信息+订单明细的格式化 PDF |
+| 3.5 仪表盘经营概览 | ✓ | Dashboard.vue 全面改版（欢迎横幅+4 指标卡片+7 日趋势图+待处理订单表） |
+
+### Phase 3 Bug 修复记录
+
+| Bug | 原因 | 修复 |
+|-----|------|------|
+| 报表中心显示"暂无数据" | TDesign `cell` 函数签名是 `(h, props)`，代码只用 `({ row })` 导致 `row` 为 `undefined` | 全部 5 处 `cell` 改为 `(h: any, { row }: any)` |
+| 图表不渲染 | `loading=false` 和 DOM 渲染/图表初始化时序问题 | `finally` 释放 loading → `await nextTick()` → `renderChart()` |
+| CSV/PDF 导出报错 | `Content-Disposition` header 含中文导致 HTTP 协议错误 | 改用 `filename*=UTF-8''${encodeURIComponent()}` 格式 |
+
 ---
 
-## 九、Phase 3 启动指南
+## 九、Phase 4 启动指南
 
-### 接下来要做的事情（5 个子任务，预估 4-5 天）
+### 接下来要做的事情（5 个子任务，预估 3-4 天）
 
 | 编号 | 任务 | 文件 | 说明 |
 |------|------|------|------|
-| 3.1 | 报表后端 API | `backend/src/reports/` | 4 个统计接口（产品/客户/时间段/状态汇总） |
-| 3.2 | 报表前端 ECharts | `frontend/src/views/Reports.vue` | 柱状图+折线图+饼图+表格 |
-| 3.3 | CSV 导出 | `reports.service.ts` | 后端生成 CSV 流，前端触发下载 |
-| 3.4 | PDF 对账单 | `reports.service.ts` | pdfkit/puppeteer 生成 |
-| 3.5 | 仪表盘经营概览 | `frontend/src/views/Dashboard.vue` | 替换为关键指标卡片+迷你趋势图 |
+| 4.1 | ECS 环境配置 | — | Node.js + Nginx + PM2 安装配置 |
+| 4.2 | MySQL 数据库初始化 | — | 创建数据库 + 用户 + 导入建表脚本 |
+| 4.3 | 构建与部署 | `source/backend/`, `source/frontend/` | Nest 构建 + Vue 构建 + PM2 启动 |
+| 4.4 | 备份脚本 | `scripts/backup.sh` | 每日 mysqldump，保留 7 天 |
+| 4.5 | 验收测试 | — | 全流程回归 + 人工验收文档 Phase 4 用例 |
+
+### 已知遗留问题（部署前解决）
+
+| 问题 | 说明 |
+|------|------|
+| `env.d.ts` 缺失 | `source/frontend/src/` 缺少 `.d.ts` 文件声明 `.vue` 模块，`vue-tsc` 构建会报错。需创建 `src/env.d.ts` |
+| ECharts 完整导入 | `import * as echarts from 'echarts'` 导入完整包体积过大。生产环境建议按需导入 |
+| `tdesign-icons-vue-next` | 图标库为传递依赖未声明在 `package.json`，可能被意外剪枝 |
 
 ### 快速启动命令
 
@@ -307,10 +333,10 @@ cd source/backend && npm run start:dev
 # 启动前端（端口 5173）
 cd source/frontend && npm run dev
 
-# 运行 Phase 3 测试
-node test-phase3.mjs
-
 # 构建检查
 cd source/backend && npx nest build
 cd source/frontend && npx vue-tsc --noEmit
+
+# 全量集成测试（Phase 1-3）
+cd source/backend && npx jest --verbose
 ```

@@ -62,8 +62,11 @@ export class ReportsController {
       status: '状态汇总',
     };
 
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const asciiName = `${type}_${dateStr}.csv`;
+    const cnName = `${filenameMap[type]}_${dateStr}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filenameMap[type]}_${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(cnName)}`);
     res.send(csv);
   }
 
@@ -74,8 +77,11 @@ export class ReportsController {
   ) {
     const pdf = await this.reportsService.exportPdf(customerId);
 
+    const pdfDateStr = new Date().toISOString().slice(0, 10);
+    const pdfAsciiName = `statement_${customerId}_${pdfDateStr}.pdf`;
+    const pdfCnName = `对账单_${customerId}_${pdfDateStr}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="对账单_${customerId}_${new Date().toISOString().slice(0, 10)}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${pdfAsciiName}"; filename*=UTF-8''${encodeURIComponent(pdfCnName)}`);
     res.send(pdf);
   }
 }

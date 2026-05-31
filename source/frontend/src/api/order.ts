@@ -21,6 +21,12 @@ export interface AttachmentData {
   createdAt: string
 }
 
+export interface PaymentRecord {
+  amount: number
+  method: string
+  date: string
+}
+
 export interface StatusLogData {
   id: number
   orderId: number
@@ -47,6 +53,7 @@ export interface Order {
   receivedAmount: string
   paymentMethod?: string
   paymentDate?: string
+  paymentRecords?: PaymentRecord[]
   remark?: string
   items: OrderItem[]
   attachments?: AttachmentData[]
@@ -79,6 +86,8 @@ export const orderApi = {
     paymentStatus?: string
     page?: number
     pageSize?: number
+    sortField?: string
+    sortOrder?: string
   }) {
     return api.get<any, OrderListResult>('/orders', { params })
   },
@@ -113,9 +122,8 @@ export const orderApi = {
   uploadAttachment(orderId: number, file: File) {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post<any, AttachmentData>(`/orders/${orderId}/attachments`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    // 不显式设置 Content-Type，让 axios 自动带 boundary
+    return api.post<any, AttachmentData>(`/orders/${orderId}/attachments`, formData)
   },
 
   deleteAttachment(orderId: number, attachmentId: number) {

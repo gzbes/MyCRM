@@ -16,6 +16,10 @@ export class CreateCustomerDto {
   @IsString()
   @IsOptional()
   address?: string;
+
+  @IsString()
+  @IsOptional()
+  remark?: string;
 }
 
 export class UpdateCustomerDto {
@@ -34,4 +38,8 @@ export class UpdateCustomerDto {
   @IsString()
   @IsOptional()
   address?: string;
+
+  @IsString()
+  @IsOptional()
+  remark?: string;
 }

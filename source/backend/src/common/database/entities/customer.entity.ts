@@ -21,6 +21,9 @@ export class Customer {
   @Column({ type: 'text', nullable: true, default: null, comment: '地址' })
   address: string;
 
+  @Column({ type: 'text', nullable: true, default: null, comment: '备注' })
+  remark: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'datetime' })
   createdAt: Date;
 

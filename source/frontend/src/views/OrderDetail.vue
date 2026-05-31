@@ -13,20 +13,32 @@
 
     <t-loading :loading="loading" size="large" show-overlay>
       <template v-if="order">
-        <!-- 第一部分：订单头信息 -->
+        <!-- 第一部分：订单头信息（含订单状态操作） -->
         <t-card title="订单信息" class="section-card">
           <t-descriptions bordered layout="vertical" :column="3">
             <t-descriptions-item label="订单编号">{{ order.code }}</t-descriptions-item>
             <t-descriptions-item label="客户名称">{{ order.customer?.name || '-' }}</t-descriptions-item>
             <t-descriptions-item label="下单日期">{{ order.orderDate || '-' }}</t-descriptions-item>
-            <t-descriptions-item label="订单状态" :span="1">
-              <t-tag :theme="orderStatusTheme(order.orderStatus)">{{ order.orderStatus }}</t-tag>
+            <t-descriptions-item label="订单状态" :span="3">
+              <div class="status-with-actions">
+                <StatusBar :all-statuses="allOrderStatuses" :current-status="order.orderStatus" :status-theme-map="orderStatusThemeMap" />
+                <t-space :size="4" style="margin-top: 6px">
+                  <t-button
+                    v-for="btn in orderStatusActions"
+                    :key="btn.value"
+                    :theme="btn.theme || 'default'"
+                    :variant="btn.variant || 'outline'"
+                    :disabled="btn.disabled"
+                    size="small"
+                    @click="handleChangeStatus('order', btn.value)"
+                  >
+                    {{ btn.label }}
+                  </t-button>
+                </t-space>
+              </div>
             </t-descriptions-item>
-            <t-descriptions-item label="开票状态" :span="1">
-              <t-tag :theme="invoiceStatusTheme(order.invoiceStatus)">{{ order.invoiceStatus }}</t-tag>
-            </t-descriptions-item>
-            <t-descriptions-item label="收款状态" :span="1">
-              <t-tag :theme="paymentStatusTheme(order.paymentStatus)">{{ order.paymentStatus }}</t-tag>
+            <t-descriptions-item label="收款状态" :span="3">
+              <StatusBar :all-statuses="allPaymentStatuses" :current-status="order.paymentStatus" :status-theme-map="paymentStatusThemeMap" />
             </t-descriptions-item>
             <t-descriptions-item label="备注" :span="3">{{ order.remark || '-' }}</t-descriptions-item>
           </t-descriptions>
@@ -51,12 +63,29 @@
           />
         </t-card>
 
-        <!-- 第三部分：开票信息 -->
+        <!-- 第三部分：开票信息（含开票状态操作） -->
         <t-card title="开票信息" class="section-card">
           <t-descriptions bordered layout="vertical" :column="3">
-            <t-descriptions-item label="开票要求">{{ order.invoiceRequirement || '-' }}</t-descriptions-item>
-            <t-descriptions-item label="开票状态">
-              <t-tag :theme="invoiceStatusTheme(order.invoiceStatus)">{{ order.invoiceStatus }}</t-tag>
+            <t-descriptions-item label="开票要求" :span="3">
+              <StatusBar :all-statuses="allInvoiceRequirements" :current-status="order.invoiceRequirement" :status-theme-map="invoiceReqThemeMap" />
+            </t-descriptions-item>
+            <t-descriptions-item label="开票状态" :span="3">
+              <div class="status-with-actions">
+                <StatusBar :all-statuses="allInvoiceStatuses" :current-status="order.invoiceStatus" :status-theme-map="invoiceStatusThemeMap" />
+                <t-space :size="4" style="margin-top: 6px">
+                  <t-button
+                    v-for="btn in invoiceStatusActions"
+                    :key="btn.value"
+                    :theme="btn.theme || 'default'"
+                    :variant="btn.variant || 'outline'"
+                    :disabled="btn.disabled"
+                    size="small"
+                    @click="handleChangeStatus('invoice', btn.value)"
+                  >
+                    {{ btn.label }}
+                  </t-button>
+                </t-space>
+              </div>
             </t-descriptions-item>
             <t-descriptions-item label="发票号">{{ order.invoiceNo || '-' }}</t-descriptions-item>
             <t-descriptions-item label="发票附件" :span="3">
@@ -70,70 +99,46 @@
           </t-descriptions>
         </t-card>
 
-        <!-- 第四部分：收款信息 -->
+        <!-- 第四部分：收款信息（含收款状态操作） -->
         <t-card title="收款信息" class="section-card">
           <t-descriptions bordered layout="vertical" :column="3">
-            <t-descriptions-item label="收款状态">
-              <t-tag :theme="paymentStatusTheme(order.paymentStatus)">{{ order.paymentStatus }}</t-tag>
+            <t-descriptions-item label="收款状态" :span="3">
+              <div class="status-with-actions">
+                <StatusBar :all-statuses="allPaymentStatuses" :current-status="order.paymentStatus" :status-theme-map="paymentStatusThemeMap" />
+                <t-space :size="4" style="margin-top: 6px">
+                  <t-button
+                    v-for="btn in paymentStatusActions"
+                    :key="btn.value"
+                    :theme="btn.theme || 'default'"
+                    :variant="btn.variant || 'outline'"
+                    :disabled="btn.disabled"
+                    size="small"
+                    @click="handleChangeStatus('payment', btn.value)"
+                  >
+                    {{ btn.label }}
+                  </t-button>
+                </t-space>
+              </div>
             </t-descriptions-item>
-            <t-descriptions-item label="已收金额">&yen; {{ order.receivedAmount || '0.00' }}</t-descriptions-item>
-            <t-descriptions-item label="收款方式">{{ order.paymentMethod || '-' }}</t-descriptions-item>
-            <t-descriptions-item label="收款日期">{{ order.paymentDate || '-' }}</t-descriptions-item>
           </t-descriptions>
-        </t-card>
 
-        <!-- 第五部分：状态操作按钮 -->
-        <t-card title="状态操作" class="section-card">
-          <div class="status-actions">
-            <div class="status-action-row">
-              <span class="action-label">订单状态：</span>
-              <t-space>
-                <t-button
-                  v-for="btn in orderStatusActions"
-                  :key="btn.value"
-                  :theme="btn.theme || 'default'"
-                  :variant="btn.variant || 'outline'"
-                  :disabled="btn.disabled"
-                  size="small"
-                  @click="handleChangeStatus('order', btn.value)"
-                >
-                  {{ btn.label }}
-                </t-button>
-              </t-space>
-            </div>
-            <div class="status-action-row">
-              <span class="action-label">开票状态：</span>
-              <t-space>
-                <t-button
-                  v-for="btn in invoiceStatusActions"
-                  :key="btn.value"
-                  :theme="btn.theme || 'default'"
-                  :variant="btn.variant || 'outline'"
-                  :disabled="btn.disabled"
-                  size="small"
-                  @click="handleChangeStatus('invoice', btn.value)"
-                >
-                  {{ btn.label }}
-                </t-button>
-              </t-space>
-            </div>
-            <div class="status-action-row">
-              <span class="action-label">收款状态：</span>
-              <t-space>
-                <t-button
-                  v-for="btn in paymentStatusActions"
-                  :key="btn.value"
-                  :theme="btn.theme || 'default'"
-                  :variant="btn.variant || 'outline'"
-                  :disabled="btn.disabled"
-                  size="small"
-                  @click="handleChangeStatus('payment', btn.value)"
-                >
-                  {{ btn.label }}
-                </t-button>
-              </t-space>
+          <!-- 收款记录明细 -->
+          <div v-if="order.paymentRecords && order.paymentRecords.length > 0" style="margin-top: 12px">
+            <t-table
+              :data="order.paymentRecords"
+              :columns="paymentRecordColumns"
+              row-key="index"
+              stripe
+              hover
+              size="small"
+            />
+            <div class="payment-summary">
+              累计已收：<strong>&yen; {{ order.receivedAmount || '0.00' }}</strong>
+              &nbsp;&nbsp;订单总额：<strong>&yen; {{ order.totalAmount }}</strong>
+              &nbsp;&nbsp;收款比例：<strong>{{ paymentRatio }}%</strong>
             </div>
           </div>
+          <t-empty v-else description="暂无收款记录" style="margin-top: 12px" />
         </t-card>
 
         <!-- 第六部分：附件管理 -->
@@ -214,7 +219,7 @@
     >
       <div v-if="statusDialogType === 'payment'">
         <t-form :data="statusForm" label-width="100px">
-          <t-form-item label="已收金额" name="receivedAmount">
+          <t-form-item label="本次收款金额" name="receivedAmount">
             <t-input-number
               v-model="statusForm.receivedAmount"
               :min="0"
@@ -273,6 +278,7 @@
 </template>
 
 <script setup lang="ts">
+import StatusBar from '@/components/StatusBar.vue'
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { orderApi, type Order } from '@/api/order'
@@ -304,6 +310,21 @@ const itemColumns = [
   { colKey: 'quantity', title: '数量' },
   { colKey: 'subtotal', title: '小计', cell: (_h: any, { row }: any) => `¥ ${row.subtotal}` },
 ]
+
+// 收款记录表格列
+const paymentRecordColumns = [
+  { colKey: 'index', title: '#', width: 40, cell: (_h: any, { rowIndex }: any) => rowIndex + 1 },
+  { colKey: 'amount', title: '收款金额', cell: (_h: any, { row }: any) => `¥${Number(row.amount).toFixed(2)}` },
+  { colKey: 'method', title: '收款方式' },
+  { colKey: 'date', title: '收款日期' },
+]
+
+// 收款比例
+const paymentRatio = computed(() => {
+  if (!order.value || !Number(order.value.totalAmount)) return '0.00'
+  const ratio = (Number(order.value.receivedAmount) / Number(order.value.totalAmount)) * 100
+  return ratio.toFixed(1)
+})
 
 // 附件表格列
 const attachmentColumns = [
@@ -361,36 +382,17 @@ const sortedLogs = computed(() => {
   )
 })
 
-// 状态标签颜色
-function orderStatusTheme(status: string): string {
-  const map: Record<string, string> = {
-    '待处理': 'warning',
-    '生产中': 'primary',
-    '已发货': 'success',
-    '已完成': 'success',
-    '已取消': 'danger',
-  }
-  return map[status] || 'default'
-}
+// ── 全状态列表 ──
+const allOrderStatuses = ['待处理', '生产中', '已发货', '已完成', '已取消']
+const allInvoiceStatuses = ['未开票', '已开增值税专用发票', '已开普通发票', '无需开票']
+const allInvoiceRequirements = ['无需开票', '3%专票', '普票']
+const allPaymentStatuses = ['未收款', '部分收款', '已结清']
 
-function invoiceStatusTheme(status: string): string {
-  const map: Record<string, string> = {
-    '未开票': 'default',
-    '已开增值税专用发票': 'success',
-    '已开普通发票': 'success',
-    '无需开票': 'default',
-  }
-  return map[status] || 'default'
-}
-
-function paymentStatusTheme(status: string): string {
-  const map: Record<string, string> = {
-    '未收款': 'warning',
-    '部分收款': 'warning',
-    '已结清': 'success',
-  }
-  return map[status] || 'default'
-}
+// ── 状态主题映射 ──
+const orderStatusThemeMap: Record<string, string> = { '待处理': 'warning', '生产中': 'primary', '已发货': 'success', '已完成': 'success', '已取消': 'danger' }
+const invoiceStatusThemeMap: Record<string, string> = { '未开票': 'default', '已开增值税专用发票': 'success', '已开普通发票': 'success', '无需开票': 'default' }
+const invoiceReqThemeMap: Record<string, string> = { '无需开票': 'default', '3%专票': 'primary', '普票': 'default' }
+const paymentStatusThemeMap: Record<string, string> = { '未收款': 'warning', '部分收款': 'warning', '已结清': 'success' }
 
 function logTheme(type: string): string {
   const map: Record<string, string> = {
@@ -630,24 +632,10 @@ onMounted(() => {
   margin-left: 8px;
 }
 
-.status-actions {
+.status-with-actions {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.status-action-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.action-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary, #333);
-  min-width: 80px;
-  flex-shrink: 0;
+  gap: 4px;
 }
 
 .attachment-upload {
@@ -721,6 +709,15 @@ onMounted(() => {
 .timeline-meta {
   font-size: 12px;
   color: var(--td-text-color-placeholder, #bbb);
+}
+
+.payment-summary {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--td-bg-color-secondarycontainer, #f9f9f9);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--td-text-color-secondary, #666);
 }
 
 .dialog-warning {

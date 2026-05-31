@@ -46,19 +46,24 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 // 直接通过 API 路径下载（不经过 axios interceptor）
-function downloadDirect(path: string, filename: string) {
+async function downloadDirect(path: string, filename: string) {
   const token = localStorage.getItem('token')
   const baseUrl = '/api'
-  const a = document.createElement('a')
-  a.href = `${baseUrl}${path}`
-  a.download = filename
-  // 添加 Authorization header 需要 fetch
-  fetch(`${baseUrl}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-    .then(res => res.blob())
-    .then(blob => downloadBlob(blob, filename))
-    .catch(() => {})
+  try {
+    const res = await fetch(`${baseUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) {
+      const errBody = await res.text()
+      throw new Error(`服务器返回 ${res.status}: ${errBody}`)
+    }
+    const blob = await res.blob()
+    downloadBlob(blob, filename)
+  } catch (err: any) {
+    console.error('下载失败:', err)
+    const { MessagePlugin } = await import('tdesign-vue-next')
+    MessagePlugin.error(err.message || '下载失败，请稍后重试')
+  }
 }
 
 export const reportsApi = {

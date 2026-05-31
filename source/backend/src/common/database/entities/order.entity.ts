@@ -39,14 +39,17 @@ export class Order {
   @Column({ type: 'varchar', length: 20, default: '未收款', comment: '收款状态' })
   paymentStatus: string;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0.00, comment: '已收金额' })
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0.00, comment: '已收金额(汇总)' })
   receivedAmount: number;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, default: null, comment: '收款方式' })
+  @Column({ type: 'varchar', length: 20, nullable: true, default: null, comment: '最近收款方式' })
   paymentMethod: string;
 
-  @Column({ name: 'payment_date', type: 'date', nullable: true, default: null, comment: '收款日期' })
+  @Column({ name: 'payment_date', type: 'date', nullable: true, default: null, comment: '最近收款日期' })
   paymentDate: string;
+
+  @Column({ type: 'json', nullable: true, default: null, comment: '收款记录数组 [{amount, method, date}]' })
+  paymentRecords: { amount: number; method: string; date: string }[];
 
   @Column({ type: 'text', nullable: true, default: null, comment: '备注' })
   remark: string;

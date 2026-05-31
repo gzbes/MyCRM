@@ -7,6 +7,7 @@ export interface Customer {
   contact?: string
   phone?: string
   address?: string
+  remark?: string
   orderCount?: number
   totalConsumption?: number
   outstandingAmount?: number
@@ -19,6 +20,7 @@ export interface CreateCustomerData {
   contact?: string
   phone?: string
   address?: string
+  remark?: string
 }
 
 export interface CustomerListResult {
@@ -29,11 +31,13 @@ export interface CustomerListResult {
 }
 
 export const customerApi = {
-  getAll(keyword?: string, page?: number, pageSize?: number) {
+  getAll(keyword?: string, page?: number, pageSize?: number, sortField?: string, sortOrder?: string) {
     const params: any = {}
     if (keyword) params.keyword = keyword
     if (page) params.page = page
     if (pageSize) params.pageSize = pageSize
+    if (sortField) params.sortField = sortField
+    if (sortOrder) params.sortOrder = sortOrder
     return api.get<any, CustomerListResult>('/customers', { params })
   },
 

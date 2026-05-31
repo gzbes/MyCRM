@@ -19,10 +19,12 @@ export class CustomersController {
     @Query('keyword') keyword?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('sortField') sortField?: string,
+    @Query('sortOrder') sortOrder?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 10;
-    return this.customersService.findAll(keyword, pageNum, pageSizeNum);
+    return this.customersService.findAll(keyword, pageNum, pageSizeNum, sortField, sortOrder);
   }
 
   @Get(':id')

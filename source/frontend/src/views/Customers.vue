@@ -27,6 +27,7 @@
       row-key="id"
       stripe
       hover
+      @sort-change="handleSortChange"
     >
       <template #action="{ row }">
         <t-space>
@@ -72,6 +73,9 @@
         <t-form-item label="地址" name="address">
           <t-input v-model="formData.address" placeholder="请输入地址" />
         </t-form-item>
+        <t-form-item label="备注" name="remark">
+          <t-textarea v-model="formData.remark" placeholder="请输入备注" :rows="3" />
+        </t-form-item>
       </t-form>
     </t-dialog>
 
@@ -89,6 +93,7 @@
           <t-descriptions-item label="联系人">{{ viewingCustomer.contact || '-' }}</t-descriptions-item>
           <t-descriptions-item label="电话">{{ viewingCustomer.phone || '-' }}</t-descriptions-item>
           <t-descriptions-item label="地址" :span="2">{{ viewingCustomer.address || '-' }}</t-descriptions-item>
+          <t-descriptions-item label="备注" :span="2">{{ viewingCustomer.remark || '-' }}</t-descriptions-item>
           <t-descriptions-item label="订单数">{{ viewingCustomer.orderCount ?? 0 }}</t-descriptions-item>
           <t-descriptions-item label="消费总额">¥{{ (viewingCustomer.totalConsumption ?? 0).toFixed(2) }}</t-descriptions-item>
           <t-descriptions-item label="创建时间" :span="2">{{ formatDate(viewingCustomer.createdAt) }}</t-descriptions-item>
@@ -117,31 +122,44 @@ const pagination = ref({
   total: 0
 })
 
+const sortState = ref<{ sortBy: string; descending: boolean }>({
+  sortBy: '',
+  descending: true
+})
+
 const formData = ref<{
   name: string
   contact: string
   phone: string
   address: string
+  remark: string
 }>({
   name: '',
   contact: '',
   phone: '',
-  address: ''
+  address: '',
+  remark: ''
 })
 
 const columns = [
-  { colKey: 'code', title: '编号', width: 180 },
-  { colKey: 'name', title: '名称', width: 150 },
-  { colKey: 'contact', title: '联系人', width: 120 },
-  { colKey: 'phone', title: '电话', width: 140 },
-  { colKey: 'address', title: '地址', width: 200, ellipsis: true },
+  { colKey: 'code', title: '编号', width: 180, sorter: true },
+  { colKey: 'name', title: '名称', width: 150, sorter: true },
+  { colKey: 'contact', title: '联系人', width: 120, sorter: true },
+  { colKey: 'phone', title: '电话', width: 140, sorter: true },
+  { colKey: 'address', title: '地址', width: 200, ellipsis: true, sorter: true },
   { colKey: 'action', title: '操作', width: 180, fixed: 'right' }
 ]
 
 const loadCustomers = async () => {
   loading.value = true
   try {
-    const result = await customerApi.getAll(searchKeyword.value, pagination.value.current, pagination.value.pageSize)
+    const result = await customerApi.getAll(
+      searchKeyword.value,
+      pagination.value.current,
+      pagination.value.pageSize,
+      sortState.value.sortBy || undefined,
+      sortState.value.descending ? 'desc' : 'asc'
+    )
     customers.value = result.data
     pagination.value.total = result.total
   } catch (error) {
@@ -149,6 +167,14 @@ const loadCustomers = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handleSortChange = (context: any) => {
+  sortState.value = {
+    sortBy: context.sortBy || '',
+    descending: context.descending !== undefined ? context.descending : true
+  }
+  loadCustomers()
 }
 
 const handleSearch = () => {
@@ -171,7 +197,8 @@ const handleEdit = (customer: Customer) => {
     name: customer.name,
     contact: customer.contact || '',
     phone: customer.phone || '',
-    address: customer.address || ''
+    address: customer.address || '',
+    remark: customer.remark || ''
   }
   showCreateDialog.value = true
 }
@@ -213,7 +240,8 @@ const handleCloseDialog = () => {
     name: '',
     contact: '',
     phone: '',
-    address: ''
+    address: '',
+    remark: ''
   }
 }
 

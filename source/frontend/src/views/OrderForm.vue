@@ -66,10 +66,14 @@
             :max-height="400"
           >
             <template #productName="{ row: _row, rowIndex }">
-              <t-input
-                v-model="formData.items[rowIndex].productName"
-                placeholder="产品名称"
-                :style="{ width: '160px' }"
+              <t-select
+                :value="formData.items[rowIndex].productId || ''"
+                placeholder="选择产品"
+                :options="productOptions"
+                filterable
+                clearable
+                :style="{ width: '200px' }"
+                @change="(val: any) => handleProductSelect(val, rowIndex)"
               />
             </template>
 
@@ -97,7 +101,7 @@
                 :min="1"
                 :decimal-places="0"
                 placeholder="数量"
-                :style="{ width: '100px' }"
+                :style="{ width: '140px' }"
               />
             </template>
 
@@ -142,6 +146,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { productApi, type Product } from '@/api/product'
 import { orderApi, type Order } from '@/api/order'
 import { customerApi, type Customer } from '@/api/customer'
 import { MessagePlugin } from 'tdesign-vue-next'
@@ -153,6 +158,7 @@ const isEdit = computed(() => !!route.params.id)
 
 const formRef = ref<any>(null)
 const customers = ref<Customer[]>([])
+const products = ref<Product[]>([])
 const submitting = ref(false)
 
 const customerOptions = computed(() => {
@@ -162,17 +168,37 @@ const customerOptions = computed(() => {
   }))
 })
 
+// 已启用的产品作为下拉选项
+const productOptions = computed(() => {
+  return activeProducts.value.map((p: Product) => ({
+    label: `${p.name}${p.spec ? ` (${p.spec})` : ''}`,
+    value: p.id,
+  }))
+})
+
+const activeProducts = computed(() => products.value.filter(p => p.status === 1))
+
+function handleProductSelect(productId: number, rowIndex: number) {
+  const p = products.value.find(p => p.id === productId)
+  if (p) {
+    formData.items[rowIndex].productName = p.name
+    formData.items[rowIndex].productSpec = p.spec || ''
+    formData.items[rowIndex].unitPrice = Number(p.defaultPrice) || 0
+  }
+}
+
 const formData = reactive({
   customerId: undefined as number | undefined,
   orderDate: new Date().toISOString().slice(0, 10),
   invoiceRequirement: '无需开票',
   remark: '',
   items: [{
+    productId: undefined as number | undefined,
     productName: '',
     productSpec: '',
     unitPrice: 0,
     quantity: 1
-  }] as { productName: string; productSpec: string; unitPrice: number; quantity: number }[]
+  }] as { productId?: number; productName: string; productSpec: string; unitPrice: number; quantity: number }[]
 })
 
 const formRules = {
@@ -201,6 +227,7 @@ function formatAmount(val: number): string {
 
 function addItem(): void {
   formData.items.push({
+    productId: undefined,
     productName: '',
     productSpec: '',
     unitPrice: 0,
@@ -227,6 +254,15 @@ async function loadCustomers(): Promise<void> {
   }
 }
 
+async function loadProducts(): Promise<void> {
+  try {
+    const res = await productApi.getAll()
+    products.value = res.data || []
+  } catch (err) {
+    console.error('Failed to load products:', err)
+  }
+}
+
 async function loadOrder(id: number): Promise<void> {
   try {
     const order: Order = await orderApi.getOne(id)
@@ -236,6 +272,7 @@ async function loadOrder(id: number): Promise<void> {
     formData.remark = order.remark || ''
     if (order.items && order.items.length > 0) {
       formData.items = order.items.map((item: any) => ({
+        productId: item.productId || undefined,
         productName: item.productName || '',
         productSpec: item.productSpec || '',
         unitPrice: item.unitPrice || 0,
@@ -293,7 +330,7 @@ async function onSubmit({ validateResult }: { validateResult: any }): Promise<vo
 }
 
 onMounted(async () => {
-  await loadCustomers()
+  await Promise.all([loadCustomers(), loadProducts()])
   if (isEdit.value) {
     await loadOrder(Number(route.params.id))
   }

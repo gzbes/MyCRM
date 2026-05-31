@@ -26,11 +26,13 @@ export interface ProductListResult {
 }
 
 export const productApi = {
-  getAll(keyword?: string, page?: number, pageSize?: number) {
+  getAll(keyword?: string, page?: number, pageSize?: number, sortField?: string, sortOrder?: string) {
     const params: any = {}
     if (keyword) params.keyword = keyword
     if (page) params.page = page
     if (pageSize) params.pageSize = pageSize
+    if (sortField) params.sortField = sortField
+    if (sortOrder) params.sortOrder = sortOrder
     return api.get<any, ProductListResult>('/products', { params })
   },
 

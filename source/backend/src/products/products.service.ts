@@ -34,6 +34,8 @@ export class ProductsService {
     keyword?: string,
     page: number = 1,
     pageSize: number = 10,
+    sortField?: string,
+    sortOrder?: string,
   ): Promise<{ data: Product[]; total: number; page: number; pageSize: number }> {
     const queryBuilder = this.productRepository.createQueryBuilder('product');
 
@@ -44,7 +46,13 @@ export class ProductsService {
       );
     }
 
-    queryBuilder.orderBy('product.createdAt', 'DESC');
+    const allowedSortFields = ['name', 'spec', 'defaultPrice', 'status', 'createdAt'];
+    if (sortField && allowedSortFields.includes(sortField)) {
+      const order = sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      queryBuilder.orderBy(`product.${sortField}`, order);
+    } else {
+      queryBuilder.orderBy('product.createdAt', 'DESC');
+    }
     queryBuilder.skip((page - 1) * pageSize);
     queryBuilder.take(pageSize);
 

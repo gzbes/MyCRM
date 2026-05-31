@@ -1,7 +1,7 @@
 <template>
   <t-layout style="height: 100vh;">
     <t-aside :width="200">
-      <div class="logo">NO-CRM</div>
+      <div class="logo">My-CRM</div>
       <t-menu :value="activeMenu" @change="handleMenuChange">
         <t-menu-item value="dashboard">
           <template #icon><t-icon name="dashboard" /></template>
@@ -82,7 +82,7 @@ const getPageTitle = () => {
     orders: '订单管理',
     reports: '报表中心'
   }
-  return titles[activeMenu.value] || 'NO-CRM'
+  return titles[activeMenu.value] || 'My-CRM'
 }
 </script>
 

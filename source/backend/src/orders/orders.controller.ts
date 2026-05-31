@@ -23,6 +23,8 @@ export class OrdersController {
     @Query('paymentStatus') paymentStatus?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('sortField') sortField?: string,
+    @Query('sortOrder') sortOrder?: string,
   ) {
     return this.ordersService.findAll(
       keyword,
@@ -32,6 +34,8 @@ export class OrdersController {
       paymentStatus,
       page ? parseInt(page, 10) : 1,
       pageSize ? parseInt(pageSize, 10) : 10,
+      sortField,
+      sortOrder,
     );
   }
 

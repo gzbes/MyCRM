@@ -169,7 +169,7 @@ const productColumns = [
   { colKey: 'productSpec', title: '规格型号', width: 120 },
   { colKey: 'orderCount', title: '订单数', width: 80 },
   { colKey: 'totalQuantity', title: '总销量', width: 80 },
-  { colKey: 'totalAmount', title: '总金额', width: 120, cell: (h: any, { row }: any) => `¥${Number(row.totalAmount).toFixed(2)}` },
+  { colKey: 'totalAmount', title: '总金额', width: 120, cell: (_h: any, { row }: any) => `¥${Number(row.totalAmount).toFixed(2)}` },
 ]
 
 const customerColumns = [
@@ -177,9 +177,9 @@ const customerColumns = [
   { colKey: 'customerName', title: '客户名称', width: 140 },
   { colKey: 'contact', title: '联系人', width: 100 },
   { colKey: 'orderCount', title: '订单数', width: 70 },
-  { colKey: 'totalConsumption', title: '累计消费', width: 120, cell: (h: any, { row }: any) => `¥${Number(row.totalConsumption).toFixed(2)}` },
-  { colKey: 'totalReceived', title: '已收款', width: 120, cell: (h: any, { row }: any) => `¥${Number(row.totalReceived).toFixed(2)}` },
-  { colKey: 'outstanding', title: '未结清', width: 120, cell: (h: any, { row }: any) => `¥${Number(row.outstanding).toFixed(2)}` },
+  { colKey: 'totalConsumption', title: '累计消费', width: 120, cell: (_h: any, { row }: any) => `¥${Number(row.totalConsumption).toFixed(2)}` },
+  { colKey: 'totalReceived', title: '已收款', width: 120, cell: (_h: any, { row }: any) => `¥${Number(row.totalReceived).toFixed(2)}` },
+  { colKey: 'outstanding', title: '未结清', width: 120, cell: (_h: any, { row }: any) => `¥${Number(row.outstanding).toFixed(2)}` },
   { colKey: 'actions', title: '操作', width: 100 },
 ]
 
@@ -187,7 +187,7 @@ const statusColumns = [
   { colKey: 'statusType', title: '状态类型', width: 100 },
   { colKey: 'statusValue', title: '状态值', width: 150 },
   { colKey: 'count', title: '订单数', width: 80 },
-  { colKey: 'totalAmount', title: '总金额', width: 120, cell: (h: any, { row }: any) => `¥${Number(row.totalAmount).toFixed(2)}` },
+  { colKey: 'totalAmount', title: '总金额', width: 120, cell: (_h: any, { row }: any) => `¥${Number(row.totalAmount).toFixed(2)}` },
 ]
 
 // ── 初始日期 ──

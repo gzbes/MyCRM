@@ -43,7 +43,7 @@ export class ReportsController {
 
   @Get('csv/:type')
   async exportCsv(
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
     @Param('type') type: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
@@ -67,12 +67,12 @@ export class ReportsController {
     const cnName = `${filenameMap[type]}_${dateStr}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(cnName)}`);
-    res.send(csv);
+    return csv;
   }
 
   @Get('pdf/customer/:customerId')
   async exportPdf(
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
     @Param('customerId', ParseIntPipe) customerId: number,
   ) {
     const pdf = await this.reportsService.exportPdf(customerId);
@@ -82,6 +82,6 @@ export class ReportsController {
     const pdfCnName = `对账单_${customerId}_${pdfDateStr}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${pdfAsciiName}"; filename*=UTF-8''${encodeURIComponent(pdfCnName)}`);
-    res.send(pdf);
+    return pdf;
   }
 }

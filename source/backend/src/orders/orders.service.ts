@@ -76,6 +76,8 @@ export class OrdersService {
     paymentStatus?: string,
     page: number = 1,
     pageSize: number = 10,
+    sortField?: string,
+    sortOrder?: string,
   ): Promise<{ data: any[]; total: number; page: number; pageSize: number }> {
     const qb = this.orderRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
@@ -92,7 +94,16 @@ export class OrdersService {
     if (invoiceStatus) qb.andWhere('order.invoiceStatus = :invoiceStatus', { invoiceStatus });
     if (paymentStatus) qb.andWhere('order.paymentStatus = :paymentStatus', { paymentStatus });
 
-    qb.orderBy('order.createdAt', 'DESC');
+    // Dynamic sorting
+    const allowedSortFields = ['orderDate', 'totalAmount', 'orderStatus', 'invoiceStatus', 'paymentStatus', 'createdAt', 'customer'];
+    const sortColumn = sortField && allowedSortFields.includes(sortField) ? sortField : 'createdAt';
+    const sortDirection = sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    if (sortColumn === 'customer') {
+      qb.orderBy('customer.name', sortDirection);
+    } else {
+      qb.orderBy(`order.${sortColumn}`, sortDirection);
+    }
+
     qb.skip((page - 1) * pageSize);
     qb.take(pageSize);
 
@@ -279,32 +290,50 @@ export class OrdersService {
     }
 
     const totalAmount = Number(order.totalAmount);
-    const receivedAmount = extra.receivedAmount ?? Number(order.receivedAmount);
+    const records = (order.paymentRecords || []) as { amount: number; method: string; date: string }[];
 
+    if (newStatus === '未收款') {
+      if (records.length > 0) {
+        throw new BadRequestException('已存在收款记录，无法设为未收款');
+      }
+    }
+
+    // 追加本次收款记录
+    if (extra.receivedAmount !== undefined && extra.receivedAmount > 0) {
+      records.push({
+        amount: extra.receivedAmount,
+        method: extra.paymentMethod || '',
+        date: extra.paymentDate || new Date().toISOString().slice(0, 10),
+      });
+    }
+
+    // 重新计算累计已收金额
+    const totalReceived = records.reduce((sum, r) => sum + Number(r.amount), 0);
+
+    // 校验
     if (newStatus === '已结清') {
-      // 规则：已收金额必须 ≥ 订单总金额
-      if (receivedAmount < totalAmount) {
-        throw new BadRequestException(`已收金额(${receivedAmount})必须≥订单总金额(${totalAmount})才能结清`);
+      if (totalReceived < totalAmount) {
+        throw new BadRequestException(`累计已收金额(${totalReceived.toFixed(2)})必须≥订单总金额(${totalAmount.toFixed(2)})才能结清`);
       }
     } else if (newStatus === '部分收款') {
-      // 规则：已收金额必须 < 订单总金额
-      if (receivedAmount >= totalAmount) {
-        throw new BadRequestException('已收金额已达到或超过订单总金额，请选择"已结清"');
+      if (totalReceived >= totalAmount) {
+        throw new BadRequestException('累计已收金额已达到或超过订单总金额，请选择"已结清"');
       }
-      if (receivedAmount <= 0) {
+      if (totalReceived <= 0) {
         throw new BadRequestException('部分收款需要已收金额大于0');
-      }
-    } else if (newStatus === '未收款') {
-      if (receivedAmount > 0) {
-        throw new BadRequestException('已存在收款记录，无法设为未收款');
       }
     }
 
     const oldStatus = order.paymentStatus;
     order.paymentStatus = newStatus;
-    order.receivedAmount = receivedAmount;
-    if (extra.paymentMethod) order.paymentMethod = extra.paymentMethod;
-    if (extra.paymentDate) order.paymentDate = extra.paymentDate;
+    order.paymentRecords = records;
+    order.receivedAmount = Math.round(totalReceived * 100) / 100;
+    // 最近一次收款信息
+    if (records.length > 0) {
+      const last = records[records.length - 1];
+      order.paymentMethod = last.method;
+      order.paymentDate = last.date;
+    }
 
     const saved = await this.orderRepository.save(order);
 

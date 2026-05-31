@@ -62,7 +62,7 @@ export class ReportsService {
       .addSelect('COUNT(DISTINCT oi.orderId)', 'orderCount')
       .addSelect('SUM(oi.quantity)', 'totalQuantity')
       .addSelect('SUM(oi.subtotal)', 'totalAmount')
-      .innerJoin('orders', 'o', 'o.id = oi.orderId')
+      .innerJoin(Order, 'o', 'o.id = oi.orderId')
       .where('o.orderStatus != :cancelled', { cancelled: '已取消' })
       .groupBy('oi.productName')
       .addGroupBy('oi.productSpec')
@@ -251,84 +251,88 @@ export class ReportsService {
     });
 
     return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 50 });
-      const chunks: Buffer[] = [];
+      try {
+        const doc = new PDFDocument({ margin: 50 });
+        const chunks: Buffer[] = [];
 
-      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
 
-      // ── 标题 ──
-      doc.fontSize(20).font('Helvetica-Bold').text('对 账 单', { align: 'center' });
-      doc.moveDown(1.5);
+        // ── 标题 ──
+        doc.fontSize(20).font('Helvetica-Bold').text('对 账 单', { align: 'center' });
+        doc.moveDown(1.5);
 
-      // ── 客户信息 ──
-      doc.fontSize(11).font('Helvetica');
-      doc.text(`客户名称：${customer.name}`);
-      doc.text(`客户编号：${customer.code}`);
-      if (customer.contact) doc.text(`联 系 人：${customer.contact}`);
-      if (customer.phone) doc.text(`联系电话：${customer.phone}`);
-      if (customer.address) doc.text(`地　　址：${customer.address}`);
-      doc.text(`打印日期：${new Date().toLocaleDateString('zh-CN')}`);
-      doc.moveDown(1);
+        // ── 客户信息 ──
+        doc.fontSize(11).font('Helvetica');
+        doc.text(`客户名称：${customer.name}`);
+        doc.text(`客户编号：${customer.code}`);
+        if (customer.contact) doc.text(`联 系 人：${customer.contact}`);
+        if (customer.phone) doc.text(`联系电话：${customer.phone}`);
+        if (customer.address) doc.text(`地　　址：${customer.address}`);
+        doc.text(`打印日期：${new Date().toLocaleDateString('zh-CN')}`);
+        doc.moveDown(1);
 
-      // ── 分隔线 ──
-      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#ccc');
-      doc.moveDown(1);
+        // ── 分隔线 ──
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#ccc');
+        doc.moveDown(1);
 
-      // ── 汇总 ──
-      const totalConsumption = orders.reduce((s, o) => s + Number(o.totalAmount), 0);
-      const totalReceived = orders.reduce((s, o) => s + Number(o.receivedAmount), 0);
-      const outstanding = totalConsumption - totalReceived;
+        // ── 汇总 ──
+        const totalConsumption = orders.reduce((s, o) => s + Number(o.totalAmount), 0);
+        const totalReceived = orders.reduce((s, o) => s + Number(o.receivedAmount), 0);
+        const outstanding = totalConsumption - totalReceived;
 
-      doc.font('Helvetica-Bold');
-      doc.text(`订单总数：${orders.length} 单`);
-      doc.text(`累计消费：¥${totalConsumption.toFixed(2)}`);
-      doc.text(`已收金额：¥${totalReceived.toFixed(2)}`);
-      doc.text(`未结清：¥${outstanding.toFixed(2)}`);
-      doc.moveDown(1);
+        doc.font('Helvetica-Bold');
+        doc.text(`订单总数：${orders.length} 单`);
+        doc.text(`累计消费：¥${totalConsumption.toFixed(2)}`);
+        doc.text(`已收金额：¥${totalReceived.toFixed(2)}`);
+        doc.text(`未结清：¥${outstanding.toFixed(2)}`);
+        doc.moveDown(1);
 
-      // ── 分隔线 ──
-      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#ccc');
-      doc.moveDown(1);
+        // ── 分隔线 ──
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#ccc');
+        doc.moveDown(1);
 
-      // ── 订单明细 ──
-      doc.fontSize(14).font('Helvetica-Bold').text('订单明细', { underline: true });
-      doc.moveDown(0.5);
+        // ── 订单明细 ──
+        doc.fontSize(14).font('Helvetica-Bold').text('订单明细', { underline: true });
+        doc.moveDown(0.5);
 
-      for (const order of orders) {
-        // 表头
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text(
-          `订单: ${order.code}    日期: ${order.orderDate}    状态: ${order.orderStatus}`,
-        );
-        doc.fontSize(9).font('Helvetica');
+        for (const order of orders) {
+          // 表头
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text(
+            `订单: ${order.code}    日期: ${order.orderDate}    状态: ${order.orderStatus}`,
+          );
+          doc.fontSize(9).font('Helvetica');
 
-        // 明细行
-        if (order.items && order.items.length > 0) {
-          for (const item of order.items) {
-            doc.text(
-              `  ${item.productName}${item.productSpec ? ` (${item.productSpec})` : ''}  × ${item.quantity}  ¥${Number(item.unitPrice).toFixed(2)}  =  ¥${Number(item.subtotal).toFixed(2)}`,
-            );
+          // 明细行
+          if (order.items && order.items.length > 0) {
+            for (const item of order.items) {
+              doc.text(
+                `  ${item.productName}${item.productSpec ? ` (${item.productSpec})` : ''}  × ${item.quantity}  ¥${Number(item.unitPrice).toFixed(2)}  =  ¥${Number(item.subtotal).toFixed(2)}`,
+              );
+            }
           }
+
+          doc.text(
+            `  总金额: ¥${Number(order.totalAmount).toFixed(2)}    已收: ¥${Number(order.receivedAmount).toFixed(2)}    收款状态: ${order.paymentStatus}`,
+          );
+          doc.moveDown(0.3);
+
+          // 订单间分隔线
+          doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#eee');
+          doc.moveDown(0.3);
         }
 
-        doc.text(
-          `  总金额: ¥${Number(order.totalAmount).toFixed(2)}    已收: ¥${Number(order.receivedAmount).toFixed(2)}    收款状态: ${order.paymentStatus}`,
-        );
-        doc.moveDown(0.3);
+        // ── 页脚 ──
+        doc.moveDown(2);
+        doc.fontSize(8).font('Helvetica').fillColor('#999');
+        doc.text('—— 本对账单由 MyCRM 系统自动生成 ——', { align: 'center' });
 
-        // 订单间分隔线
-        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#eee');
-        doc.moveDown(0.3);
+        doc.end();
+      } catch (err) {
+        reject(err);
       }
-
-      // ── 页脚 ──
-      doc.moveDown(2);
-      doc.fontSize(8).font('Helvetica').fillColor('#999');
-      doc.text('—— 本对账单由 MyCRM 系统自动生成 ——', { align: 'center' });
-
-      doc.end();
     });
   }
 }

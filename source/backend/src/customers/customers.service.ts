@@ -36,6 +36,8 @@ export class CustomersService {
     keyword?: string,
     page: number = 1,
     pageSize: number = 10,
+    sortField?: string,
+    sortOrder?: string,
   ): Promise<{ data: any[]; total: number; page: number; pageSize: number }> {
     const queryBuilder = this.customerRepository.createQueryBuilder('customer');
 
@@ -46,7 +48,14 @@ export class CustomersService {
       );
     }
 
-    queryBuilder.orderBy('customer.createdAt', 'DESC');
+    // Dynamic sorting with whitelist validation
+    const allowedSortFields = ['name', 'contact', 'phone', 'address', 'createdAt'];
+    if (sortField && allowedSortFields.includes(sortField)) {
+      const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
+      queryBuilder.orderBy(`customer.${sortField}`, order);
+    } else {
+      queryBuilder.orderBy('customer.createdAt', 'DESC');
+    }
     queryBuilder.skip((page - 1) * pageSize);
     queryBuilder.take(pageSize);
 

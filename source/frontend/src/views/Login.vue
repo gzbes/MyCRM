@@ -17,7 +17,7 @@
               <text x="50" y="58" text-anchor="middle" font-size="24" fill="#0052D9" font-weight="bold">CRM</text>
             </svg>
           </div>
-          <h1 class="brand-title">NO-CRM</h1>
+          <h1 class="brand-title">My-CRM</h1>
           <p class="brand-subtitle">客户管理系统</p>
           <div class="brand-features">
             <div class="feature-item" v-for="(feature, index) in features" :key="index" :style="{ animationDelay: `${index * 0.2}s` }">
@@ -97,10 +97,10 @@ const activeTab = ref('login')
 const loading = ref(false)
 
 const features = [
-  '客户信息管理',
-  '销售线索跟进',
-  '任务提醒功能',
-  '团队协作工具'
+  '客户管理',
+  '产品管理',
+  '订单管理',
+  '报表中心'
 ]
 
 const loginForm = ref({

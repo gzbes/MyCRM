@@ -36,6 +36,7 @@
       hover
       :pagination="pagination"
       @page-change="handlePageChange"
+      @sort-change="handleSortChange"
     >
       <template #customer="{ row }">
         {{ row.customer?.name || '-' }}
@@ -44,13 +45,13 @@
         ¥{{ parseFloat(row.totalAmount).toFixed(2) }}
       </template>
       <template #orderStatus="{ row }">
-        <t-tag :theme="orderStatusTheme(row.orderStatus)">{{ row.orderStatus }}</t-tag>
+        <StatusBar :all-statuses="allOrderStatuses" :current-status="row.orderStatus" :status-theme-map="orderStatusThemeMap" />
       </template>
       <template #invoiceStatus="{ row }">
-        <t-tag :theme="invoiceStatusTheme(row.invoiceStatus)">{{ row.invoiceStatus }}</t-tag>
+        <StatusBar :all-statuses="allInvoiceStatuses" :current-status="row.invoiceStatus" :status-theme-map="invoiceStatusThemeMap" />
       </template>
       <template #paymentStatus="{ row }">
-        <t-tag :theme="paymentStatusTheme(row.paymentStatus)">{{ row.paymentStatus }}</t-tag>
+        <StatusBar :all-statuses="allPaymentStatuses" :current-status="row.paymentStatus" :status-theme-map="paymentStatusThemeMap" />
       </template>
       <template #action="{ row }">
         <t-space>
@@ -65,6 +66,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import StatusBar from '@/components/StatusBar.vue'
 import { orderApi, type Order } from '@/api/order'
 import { MessagePlugin } from 'tdesign-vue-next'
 
@@ -72,6 +74,7 @@ const router = useRouter()
 const orders = ref<Order[]>([])
 const loading = ref(false)
 const keyword = ref('')
+const sortState = ref({ sortBy: '', descending: true })
 
 const pagination = reactive({
   page: 1,
@@ -81,27 +84,24 @@ const pagination = reactive({
 
 const columns = [
   { colKey: 'code', title: '订单编号', width: 180 },
-  { colKey: 'customer', title: '客户', width: 140 },
-  { colKey: 'orderDate', title: '下单日期', width: 110 },
-  { colKey: 'totalAmount', title: '总金额', width: 120 },
-  { colKey: 'orderStatus', title: '订单状态', width: 100 },
-  { colKey: 'invoiceStatus', title: '开票状态', width: 110 },
-  { colKey: 'paymentStatus', title: '收款状态', width: 100 },
+  { colKey: 'customer', title: '客户', width: 140, sorter: true },
+  { colKey: 'orderDate', title: '下单日期', width: 110, sorter: true },
+  { colKey: 'totalAmount', title: '总金额', width: 120, sorter: true },
+  { colKey: 'orderStatus', title: '订单状态', width: 380, sorter: true },
+  { colKey: 'invoiceStatus', title: '开票状态', width: 400, sorter: true },
+  { colKey: 'paymentStatus', title: '收款状态', width: 260, sorter: true },
   { colKey: 'action', title: '操作', width: 120, fixed: 'right' },
 ]
 
-function orderStatusTheme(status: string): string {
-  const map: Record<string, string> = { '待处理': 'warning', '生产中': 'primary', '已发货': 'success', '已完成': 'success', '已取消': 'danger' }
-  return map[status] || 'default'
-}
-function invoiceStatusTheme(status: string): string {
-  const map: Record<string, string> = { '未开票': 'default', '已开增值税专用发票': 'success', '已开普通发票': 'success', '无需开票': 'default' }
-  return map[status] || 'default'
-}
-function paymentStatusTheme(status: string): string {
-  const map: Record<string, string> = { '未收款': 'warning', '部分收款': 'warning', '已结清': 'success' }
-  return map[status] || 'default'
-}
+// 全状态显示 - 所有可能状态的完整列表
+const allOrderStatuses = ['待处理', '生产中', '已发货', '已完成', '已取消']
+const allInvoiceStatuses = ['未开票', '已开增值税专用发票', '已开普通发票', '无需开票']
+const allPaymentStatuses = ['未收款', '部分收款', '已结清']
+
+// 状态主题映射
+const orderStatusThemeMap: Record<string, string> = { '待处理': 'warning', '生产中': 'primary', '已发货': 'success', '已完成': 'success', '已取消': 'danger' }
+const invoiceStatusThemeMap: Record<string, string> = { '未开票': 'default', '已开增值税专用发票': 'success', '已开普通发票': 'success', '无需开票': 'default' }
+const paymentStatusThemeMap: Record<string, string> = { '未收款': 'warning', '部分收款': 'warning', '已结清': 'success' }
 
 async function loadOrders() {
   loading.value = true
@@ -110,6 +110,8 @@ async function loadOrders() {
       keyword: keyword.value || undefined,
       page: pagination.page,
       pageSize: pagination.pageSize,
+      sortField: sortState.value.sortBy || undefined,
+      sortOrder: sortState.value.descending ? 'desc' : 'asc',
     })
     orders.value = result.data
     pagination.total = result.total
@@ -122,6 +124,11 @@ async function loadOrders() {
 
 function handleSearch() { pagination.page = 1; loadOrders() }
 function handlePageChange(pageInfo: any) { pagination.page = pageInfo.page; pagination.pageSize = pageInfo.pageSize; loadOrders() }
+function handleSortChange(ctx: any) {
+  sortState.value.sortBy = ctx.sortBy || ''
+  sortState.value.descending = ctx.descending !== false
+  loadOrders()
+}
 function handleAdd() { router.push('/orders/new') }
 function handleView(order: Order) { router.push(`/orders/${order.id}`) }
 

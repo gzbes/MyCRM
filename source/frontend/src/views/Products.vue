@@ -38,6 +38,7 @@
       hover
       :pagination="pagination"
       @page-change="handlePageChange"
+      @sort-change="handleSortChange"
     >
       <template #defaultPrice="{ row }">
         {{ parseFloat(row.defaultPrice).toFixed(2) }}
@@ -105,6 +106,7 @@ const submitting = ref(false)
 const showDialog = ref(false)
 const editingProduct = ref<Product | null>(null)
 const keyword = ref('')
+const sortState = reactive({ sortBy: '', descending: true })
 
 const pagination = reactive({
   page: 1,
@@ -120,10 +122,10 @@ const formData = ref({
 })
 
 const columns = [
-  { colKey: 'name', title: '名称', width: 160, ellipsis: true },
-  { colKey: 'spec', title: '规格', width: 140, ellipsis: true },
-  { colKey: 'defaultPrice', title: '默认价格', width: 120 },
-  { colKey: 'status', title: '状态', width: 100 },
+  { colKey: 'name', title: '名称', width: 160, ellipsis: true, sorter: true },
+  { colKey: 'spec', title: '规格', width: 140, ellipsis: true, sorter: true },
+  { colKey: 'defaultPrice', title: '默认价格', width: 120, sorter: true },
+  { colKey: 'status', title: '状态', width: 100, sorter: true },
   { colKey: 'remark', title: '备注', width: 200, ellipsis: true },
   { colKey: 'action', title: '操作', width: 150, fixed: 'right' },
 ]
@@ -131,7 +133,13 @@ const columns = [
 const loadProducts = async () => {
   loading.value = true
   try {
-    const result = await productApi.getAll(keyword.value, pagination.page, pagination.pageSize)
+    const result = await productApi.getAll(
+      keyword.value,
+      pagination.page,
+      pagination.pageSize,
+      sortState.sortBy || undefined,
+      sortState.descending ? 'DESC' : 'ASC',
+    )
     products.value = result.data
     pagination.total = result.total
   } catch (error: any) {
@@ -149,6 +157,13 @@ const handleSearch = () => {
 const handlePageChange = (pageInfo: any) => {
   pagination.page = pageInfo.page
   pagination.pageSize = pageInfo.pageSize
+  loadProducts()
+}
+
+const handleSortChange = (ctx: any) => {
+  sortState.sortBy = ctx.sortBy || ''
+  sortState.descending = ctx.descending !== undefined ? ctx.descending : true
+  pagination.page = 1
   loadProducts()
 }
 

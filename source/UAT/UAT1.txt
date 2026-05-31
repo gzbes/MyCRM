@@ -1,0 +1,41 @@
+用户验收测试优化建议：
+登录页面： 
+	1. 登录页面中的No-CRM 修改为 My-CRM, 所有其它相关的页面也将No-CRM字样修改为 My-CRM
+	2. 登录页面中显示的“客户信息管理”，“销售线索跟进”，“任务提醒功能”，“团队协作工具” 分别改成 客户管理，产品管理，订单管理，报表中心
+
+客户管理：
+	1. 客户列表改成可以按表头字段点击排序，比如点击表头的名称，将依据客户名称进行升序或降序排序显示
+	2. 新建客户中增加类似产品管理中的备注输入框。 
+	3. 新增的备注信息在点击查看或编辑客户时，显示在详情页面。
+
+产品管理：
+	1. 产品列表改成可以按表头字段点击排序，比如点击表头的名称，将依据产品名称进行升序或降序排序显示
+	2. 
+
+订单管理：
+	1. 订单列表改成可以按表头字段点击排序，比如点击表头的客户、订单状态、开票状态、收款状态，将依据订单的客户、订单状态、开票状态、收款状态进行升序或降序排序显示
+	2. 左边菜单栏中的 订单管理 掐灭应该跟其它菜单一样，在订单管理字体前面加上一个图标。	
+	3. 新建订单时，产品名称的选择应该类似客户选择框一样跟进产品列表进行选择和筛选， 规格型号和单价自动从产品的默认规格和默认单价中带出来，并且允许手动修改规格型号及单价。 数量输入框目前占位符太短只显示了一个字符数字，请扩长数量输入框显示。、
+	4. 订单管理中的订单列表页，每条订单中的订单状态、开票状态、收款状态 这3列的内容，显示所有状态信息，将当前状态显示为高亮，其它状态显示为暗灰色。比如订单状态列，应该显示为待处理，生产中，已发货，以完成，以取消，其中若当前状态为待处理，则将待处理显示为高亮，其它显示为灰暗色。
+	5. 查看订单详情页， 订单信息中的订单状态、开票状态、收款状态 这3列的内容，显示所有状态信息，将当前状态显示为高亮，其它状态显示为暗灰色。 其中的状态操作模块，合并到订单信息模块中操作。
+	6. 其中的部分收款操作，应该允许多次部分收款。其中的收款信息框中，应该记录多次收款的金额和收款方式及日期，并且显示收款状态和收款汇总金额及收款比例。
+	7. 开票信息框中，开票要求和开票状态应显示所有列表，当前状态高亮显示，其它状态灰暗色显示。对开票状态的操作也合并到开票信息中操作。
+	8. 目前的附件管理中，上次png图片显示上传附件失败，报错信息： Failed to load resource: the server responded with a status of 400 (Bad Request) 5173/api/orders/24/attachments:1
+
+报表中心：
+	1. 产品汇总报表，导出CSV报错，但实际上 产品汇总_2026-05-30.csv文件已经下载完成， 里面的内容是{"statusCode":500,"message":"Internal server error"}。浏览器中F12看Console中的错误信息如下：
+		 GET http://localhost:5173/api/reports/csv/product 500 (Internal Server Error)
+			downloadDirect	@	reports.ts:56
+			(anonymous)	@	reports.ts:96
+			(anonymous)	@	Reports.vue:13
+	2. 客户对账单报表，导出CSV报错，但实际上 客户对账单_2026-05-30.csv文件已经下载完成， 里面的内容是{"statusCode":500,"message":"Internal server error"}。浏览器中F12看Console中的错误信息如下：
+		GET http://localhost:5173/api/reports/csv/customer 500 (Internal Server Error)
+		downloadDirect	@	reports.ts:56
+		(anonymous)	@	reports.ts:96
+		(anonymous)	@	Reports.vue:38
+	3. 客户对账单报表，任意一条记录导出PDF，下载的PDF文件打开时显示 Fail to load PDF document, 览器中F12看Console中的错误信息如下：
+		 GET http://localhost:5173/api/reports/pdf/customer/12 500 (Internal Server Error)
+			downloadDirect	@	reports.ts:56
+			(anonymous)	@	reports.ts:101
+			(anonymous)	@	Reports.vue:55
+	4. 其它的营收趋势和状态汇总，导出CSV报表都类似报错。

@@ -72,7 +72,7 @@ export class ReportsController {
 
   @Get('pdf/customer/:customerId')
   async exportPdf(
-    @Res({ passthrough: true }) res: Response,
+    @Res() res: Response,
     @Param('customerId', ParseIntPipe) customerId: number,
   ) {
     const pdf = await this.reportsService.exportPdf(customerId);
@@ -82,6 +82,6 @@ export class ReportsController {
     const pdfCnName = `对账单_${customerId}_${pdfDateStr}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${pdfAsciiName}"; filename*=UTF-8''${encodeURIComponent(pdfCnName)}`);
-    return pdf;
+    res.send(pdf);
   }
 }

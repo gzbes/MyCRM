@@ -327,7 +327,7 @@ source/
 | **3.9** | **PNG 上传 400** | **BUG** | **ValidationPipe 干扰 `@UploadedFile()`** | [main.ts](source/backend/src/main.ts) |
 | **4.1** | **PDF 对账单损坏** | **BUG** | **Helvetica 不含中文字形** | [reports.service.ts](source/backend/src/reports/reports.service.ts) + `assets/fonts/` |
 
-#### UAT 第 2 轮补修（6 项）
+#### UAT 第 2 轮补修（7 项）
 
 | 编号 | 问题 | 类 | 根因 | 修复文件 |
 |------|------|:-:|------|---------|
@@ -337,6 +337,7 @@ source/
 | R4 | 中文文件名乱码 | BUG | Windows 下 multer 的 `originalname` 使用 latin1 编码 | [upload.controller.ts](source/backend/src/upload/upload.controller.ts) |
 | R5 | 附件无预览按钮 | 优化 | 仅有下载和删除，缺少预览入口 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
 | R6 | 发票号不可随时修改 | 优化 | `UpdateOrderDto` 无 `invoiceNo` 字段，且 `update()` 限制订单状态 | [order.dto.ts](source/backend/src/orders/dto/order.dto.ts)、[orders.service.ts](source/backend/src/orders/orders.service.ts)、[OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| **R7** | **PDF 对账单 JSON 化** | **BUG** | **NestJS `@Res({ passthrough: true })` 将 Buffer 序列化为 JSON** | [reports.controller.ts](source/backend/src/reports/reports.controller.ts) — `@Res()` + `res.send()` |
 
 **UAT 测试文档：**
 - [UAT2.md](source/UAT/UAT2.md) — 验收问题报告

@@ -67,7 +67,25 @@
         <t-card title="开票信息" class="section-card">
           <t-descriptions bordered layout="vertical" :column="3">
             <t-descriptions-item label="开票要求" :span="3">
-              <StatusBar :all-statuses="allInvoiceRequirements" :current-status="order.invoiceRequirement" :status-theme-map="invoiceReqThemeMap" />
+              <div class="status-with-actions">
+                <template v-if="order.invoiceStatus === '未开票'">
+                  <t-select
+                    :value="order.invoiceRequirement"
+                    style="width: 200px"
+                    @change="handleInvoiceRequirementChange"
+                  >
+                    <t-option value="3%专票" label="3%专票" />
+                    <t-option value="普票" label="普票" />
+                    <t-option value="无需开票" label="无需开票" :disabled="true" />
+                  </t-select>
+                  <t-space :size="4" style="margin-top: 6px">
+                    <t-tag theme="warning" size="small">未开票状态下可修改</t-tag>
+                  </t-space>
+                </template>
+                <template v-else>
+                  <StatusBar :all-statuses="allInvoiceRequirements" :current-status="order.invoiceRequirement" :status-theme-map="invoiceReqThemeMap" />
+                </template>
+              </div>
             </t-descriptions-item>
             <t-descriptions-item label="开票状态" :span="3">
               <div class="status-with-actions">
@@ -218,6 +236,21 @@
       width="500px"
     >
       <div v-if="statusDialogType === 'payment'">
+        <div class="payment-summary-dialog" v-if="order">
+          <t-descriptions :column="3" style="margin-bottom: 16px">
+            <t-descriptions-item label="订单总额">
+              <strong style="color: #e34d59">¥{{ Number(order.totalAmount).toFixed(2) }}</strong>
+            </t-descriptions-item>
+            <t-descriptions-item label="已收金额">
+              <strong style="color: #00a870">¥{{ Number(order.receivedAmount || 0).toFixed(2) }}</strong>
+            </t-descriptions-item>
+            <t-descriptions-item label="未收金额">
+              <strong :style="{ color: (Number(order.totalAmount) - Number(order.receivedAmount || 0)) > 0 ? '#e34d59' : '#00a870' }">
+                ¥{{ (Number(order.totalAmount) - Number(order.receivedAmount || 0)).toFixed(2) }}
+              </strong>
+            </t-descriptions-item>
+          </t-descriptions>
+        </div>
         <t-form :data="statusForm" label-width="100px">
           <t-form-item label="本次收款金额" name="receivedAmount">
             <t-input-number
@@ -403,21 +436,21 @@ function logTheme(type: string): string {
   return map[type] || 'default'
 }
 
-// 订单状态操作按钮
+// 订单状态操作按钮（自由选择，不限制顺序）
 const orderStatusActions = computed(() => {
   const current = order.value?.orderStatus || ''
   const allStatuses = ['待处理', '生产中', '已发货', '已完成', '已取消']
-  const flow: Record<string, string[]> = {
-    '待处理': ['生产中', '已取消'],
-    '生产中': ['已发货', '已取消'],
-    '已发货': ['已完成'],
-    '已完成': [],
-    '已取消': [],
-  }
 
-  const nextStatuses = flow[current] || []
+  // 已完成和已取消是终态
+  if (['已完成', '已取消'].includes(current)) return []
+
+  // 已开票的订单不可取消
+  const invoiceStatus = order.value?.invoiceStatus || ''
+  const cannotCancel = invoiceStatus.includes('已开')
+
   return allStatuses
-    .filter(s => nextStatuses.includes(s))
+    .filter(s => s !== current)
+    .filter(s => !(s === '已取消' && cannotCancel))
     .map(s => ({
       label: s,
       value: s,
@@ -446,26 +479,22 @@ const invoiceStatusActions = computed(() => {
   }))
 })
 
-// 收款状态操作按钮
+// 收款状态操作按钮（支持多次部分收款）
 const paymentStatusActions = computed(() => {
   const current = order.value?.paymentStatus || ''
-  const nextMap: Record<string, { label: string; value: string }[]> = {
-    '未收款': [
-      { label: '部分收款', value: '部分收款' },
-      { label: '已结清', value: '已结清' },
-    ],
-    '部分收款': [
-      { label: '已结清', value: '已结清' },
-    ],
+  if (current === '未收款') {
+    return [
+      { label: '部分收款', value: '部分收款', theme: 'warning' as const, variant: 'outline' as const, disabled: false },
+      { label: '已结清', value: '已结清', theme: 'success' as const, variant: 'outline' as const, disabled: false },
+    ]
   }
-
-  const btns = nextMap[current] || []
-  return btns.map(b => ({
-    ...b,
-    theme: b.value === '已结清' ? 'success' : ('warning' as const),
-    variant: 'outline' as const,
-    disabled: false,
-  }))
+  if (current === '部分收款') {
+    return [
+      { label: '追加收款', value: '部分收款', theme: 'warning' as const, variant: 'outline' as const, disabled: false },
+      { label: '已结清', value: '已结清', theme: 'success' as const, variant: 'outline' as const, disabled: false },
+    ]
+  }
+  return []
 })
 
 // 对话框标题
@@ -490,6 +519,19 @@ function handleChangeStatus(type: 'order' | 'invoice' | 'payment', newStatus: st
   statusDialogType.value = type
   statusDialogNewStatus.value = newStatus
   statusDialogVisible.value = true
+}
+
+// 处理开票要求变更（未开票状态下可直接修改）
+async function handleInvoiceRequirementChange(value: string) {
+  if (!order.value) return
+  try {
+    const updated = await orderApi.update(order.value.id, { invoiceRequirement: value })
+    order.value = updated
+    await MessagePlugin.success('开票要求已更新')
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || '更新开票要求失败'
+    await MessagePlugin.error(msg)
+  }
 }
 
 // 处理状态变更确认

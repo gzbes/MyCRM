@@ -214,26 +214,32 @@ FlowCRM 原项目使用 **JSON 文件存储**，本项目改造为 **MySQL 8.0 +
 
 ```
 source/
-├── backend/src/
-│   ├── auth/              # [保留适配] JWT + Passport
-│   ├── customers/         # [改造] JSON → TypeORM
-│   ├── products/          # [新增] 产品管理
-│   ├── orders/            # [新增] 订单管理
-│   ├── reports/           # [新增] 报表（替换原 statistics）
-│   ├── upload/            # [新增] 文件上传
-│   └── common/database/   # [新增] TypeORM 配置 + 实体
+├── backend/
+│   ├── src/
+│   │   ├── auth/              # [保留适配] JWT + Passport
+│   │   ├── customers/         # [改造] JSON → TypeORM
+│   │   ├── products/          # [新增] 产品管理
+│   │   ├── orders/            # [新增] 订单管理
+│   │   ├── reports/           # [新增] 报表（替换原 statistics）
+│   │   ├── upload/            # [新增] 文件上传
+│   │   └── common/database/   # [新增] TypeORM 配置 + 实体
+│   └── assets/fonts/          # [新增] PDF 中文字体（NotoSansSC）
 ├── frontend/src/
 │   ├── views/
-│   │   ├── Customers.vue  # [改造]
-│   │   ├── Products.vue   # [新增]
-│   │   ├── Orders.vue     # [新增] 列表页
-│   │   ├── OrderDetail.vue# [新增] 详情页
-│   │   ├── Reports.vue    # [新增]
-│   │   └── Dashboard.vue  # [改造] 经营概览
-│   └── router/index.ts    # [改造]
+│   │   ├── Customers.vue      # [改造]
+│   │   ├── Products.vue       # [新增]
+│   │   ├── Orders.vue         # [新增] 列表页
+│   │   ├── OrderDetail.vue    # [新增] 详情页
+│   │   ├── Reports.vue        # [新增]
+│   │   └── Dashboard.vue      # [改造] 经营概览
+│   ├── components/            # [新增] 组件目录
+│   └── router/index.ts        # [改造]
+├── UAT/                       # [新增] 用户验收测试文档
+│   ├── UAT2.md                # UAT 第 2 轮问题报告
+│   └── UAT2_Plan.md           # UAT 修复计划
 └── docs/
-    ├── BR.md              # 需求规格说明书
-    └── Plan.md            # 开发计划
+    ├── BR.md                  # 需求规格说明书
+    └── Plan.md                # 开发计划
 ```
 
 ---
@@ -241,10 +247,10 @@ source/
 ## 八、当前状态
 
 <!-- 开发过程中请更新此处 -->
-- **当前阶段：** Phase 3 — 报表赋能（已完成）
+- **当前阶段：** Phase 2 UAT 修复（已完成）
 - **当前任务：** Phase 4 — 部署与运维（待启动）
-- **完成进度：** 21 / 26 天
-- **最后更新：** 2026-05-30
+- **完成进度：** 23 / 28 天
+- **最后更新：** 2026-06-01
 
 ### Phase 2 完成总结
 
@@ -262,7 +268,7 @@ source/
 
 | 规则 | 校验方式 | 状态 |
 |------|---------|------|
-| 订单状态只能向前流转 | 后端 400 | ✓ |
+| 订单状态自由流转（UAT 2 修改） | 后端 400（仅阻止终态变更/重复设置） | ✓ |
 | 已开票订单不能取消 | 后端 409 Conflict | ✓ |
 | 取消自动设开票为"无需开票" | 后端自动 | ✓ |
 | 未取消不允许设开票为"无需开票" | 后端 400 | ✓ |
@@ -302,6 +308,27 @@ source/
 | 图表不渲染 | `loading=false` 和 DOM 渲染/图表初始化时序问题 | `finally` 释放 loading → `await nextTick()` → `renderChart()` |
 | CSV/PDF 导出报错 | `Content-Disposition` header 含中文导致 HTTP 协议错误 | 改用 `filename*=UTF-8''${encodeURIComponent()}` 格式 |
 
+### Phase 2 UAT 修复总结（UAT 第 2 轮）
+
+| 编号 | 问题 | 类型 | 根因 | 涉及文件 |
+|------|------|:----:|------|---------|
+| 1.1 | 备注多行展示 | 优化 | Vue 文本插值忽略 `\n` | [Customers.vue](source/frontend/src/views/Customers.vue) |
+| 2.1 | 产品列表排序 | 优化 | 已有功能，确认正常 | [Products.vue](source/frontend/src/views/Products.vue) |
+| 3.1 | 列表开票状态展示 | 优化 | StatusBar 渲染长文本 + 列顺序 + 主题色 | [Orders.vue](source/frontend/src/views/Orders.vue) |
+| **3.2** | **产品选择后显示为空** | **BUG** | **`handleProductSelect` 未设置 `productId`** | [OrderForm.vue](source/frontend/src/views/OrderForm.vue) |
+| 3.3 | 删除 +/- 按钮 | 优化 | `t-input-number` 默认带 stepper | [OrderForm.vue](source/frontend/src/views/OrderForm.vue) |
+| 3.4 | 输入框加宽 | 优化 | 120px 仅显示 4 位数字 | [OrderForm.vue](source/frontend/src/views/OrderForm.vue) |
+| 3.5 | 自由选择状态 | 优化 | 顺序流转限制 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) + [orders.service.ts](source/backend/src/orders/orders.service.ts) |
+| 3.6 | 多次部分收款 | 优化 | 按钮在部分收款后消失 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| 3.7 | 部分收款显示金额 | 优化 | Dialog 缺金额信息 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| 3.8 | 未开票可改要求 | 优化 | 详情页只读展示 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| **3.9** | **PNG 上传 400** | **BUG** | **ValidationPipe 干扰 `@UploadedFile()`** | [main.ts](source/backend/src/main.ts) |
+| **4.1** | **PDF 对账单损坏** | **BUG** | **Helvetica 不含中文字形** | [reports.service.ts](source/backend/src/reports/reports.service.ts) + `assets/fonts/` |
+
+**UAT 测试文档：**
+- [UAT2.md](source/UAT/UAT2.md) — 验收问题报告
+- [UAT2_Plan.md](source/UAT/UAT2_Plan.md) — 分析和修复计划
+
 ---
 
 ## 九、Phase 4 启动指南
@@ -318,11 +345,12 @@ source/
 
 ### 已知遗留问题（部署前解决）
 
-| 问题 | 说明 |
-|------|------|
-| `env.d.ts` 缺失 | `source/frontend/src/` 缺少 `.d.ts` 文件声明 `.vue` 模块，`vue-tsc` 构建会报错。需创建 `src/env.d.ts` |
-| ECharts 完整导入 | `import * as echarts from 'echarts'` 导入完整包体积过大。生产环境建议按需导入 |
-| `tdesign-icons-vue-next` | 图标库为传递依赖未声明在 `package.json`，可能被意外剪枝 |
+| 问题 | 说明 | 状态 |
+|------|------|:----:|
+| `env.d.ts` 缺失 | `source/frontend/src/` 缺少 `.d.ts` 文件声明 `.vue` 模块，`vue-tsc` 构建会报错。需创建 `src/env.d.ts` | ⏳ 待解决 |
+| ECharts 完整导入 | `import * as echarts from 'echarts'` 导入完整包体积过大。生产环境建议按需导入 | ⏳ 待解决 |
+| `tdesign-icons-vue-next` | 图标库为传递依赖未声明在 `package.json`，可能被意外剪枝 | ⏳ 待解决 |
+| PDF 中文字体 | UAT 修复中已添加 NotoSansSC 字体到 `assets/fonts/`，需确认部署时包含 | ✅ 已解决 |
 
 ### 快速启动命令
 

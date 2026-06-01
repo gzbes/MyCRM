@@ -5,6 +5,7 @@ import { Order } from '../common/database/entities/order.entity';
 import { OrderItem } from '../common/database/entities/order-item.entity';
 import { Customer } from '../common/database/entities/customer.entity';
 import PDFDocument from 'pdfkit';
+import { join } from 'path';
 
 // ── 接口定义 ──
 
@@ -259,12 +260,18 @@ export class ReportsService {
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
 
+        // 注册中文字体（Noto Sans SC）
+        const fontPath = join(__dirname, '../../assets/fonts/NotoSansSC-Regular.otf');
+        const fontBoldPath = join(__dirname, '../../assets/fonts/NotoSansSC-Bold.otf');
+        doc.registerFont('NotoSansSC', fontPath);
+        doc.registerFont('NotoSansSC-Bold', fontBoldPath);
+
         // ── 标题 ──
-        doc.fontSize(20).font('Helvetica-Bold').text('对 账 单', { align: 'center' });
+        doc.fontSize(20).font('NotoSansSC-Bold').text('对 账 单', { align: 'center' });
         doc.moveDown(1.5);
 
         // ── 客户信息 ──
-        doc.fontSize(11).font('Helvetica');
+        doc.fontSize(11).font('NotoSansSC');
         doc.text(`客户名称：${customer.name}`);
         doc.text(`客户编号：${customer.code}`);
         if (customer.contact) doc.text(`联 系 人：${customer.contact}`);
@@ -282,7 +289,7 @@ export class ReportsService {
         const totalReceived = orders.reduce((s, o) => s + Number(o.receivedAmount), 0);
         const outstanding = totalConsumption - totalReceived;
 
-        doc.font('Helvetica-Bold');
+        doc.font('NotoSansSC-Bold');
         doc.text(`订单总数：${orders.length} 单`);
         doc.text(`累计消费：¥${totalConsumption.toFixed(2)}`);
         doc.text(`已收金额：¥${totalReceived.toFixed(2)}`);
@@ -294,16 +301,16 @@ export class ReportsService {
         doc.moveDown(1);
 
         // ── 订单明细 ──
-        doc.fontSize(14).font('Helvetica-Bold').text('订单明细', { underline: true });
+        doc.fontSize(14).font('NotoSansSC-Bold').text('订单明细', { underline: true });
         doc.moveDown(0.5);
 
         for (const order of orders) {
           // 表头
-          doc.fontSize(10).font('Helvetica-Bold');
+          doc.fontSize(10).font('NotoSansSC-Bold');
           doc.text(
             `订单: ${order.code}    日期: ${order.orderDate}    状态: ${order.orderStatus}`,
           );
-          doc.fontSize(9).font('Helvetica');
+          doc.fontSize(9).font('NotoSansSC');
 
           // 明细行
           if (order.items && order.items.length > 0) {
@@ -326,7 +333,7 @@ export class ReportsService {
 
         // ── 页脚 ──
         doc.moveDown(2);
-        doc.fontSize(8).font('Helvetica').fillColor('#999');
+        doc.fontSize(8).font('NotoSansSC').fillColor('#999');
         doc.text('—— 本对账单由 MyCRM 系统自动生成 ——', { align: 'center' });
 
         doc.end();

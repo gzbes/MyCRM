@@ -13,7 +13,10 @@ async function bootstrap() {
   });
   
   // 全局验证管道
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    whitelist: true,
+  }));
   
   // 全局路由前缀
   app.setGlobalPrefix('api');

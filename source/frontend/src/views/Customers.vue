@@ -93,7 +93,7 @@
           <t-descriptions-item label="联系人">{{ viewingCustomer.contact || '-' }}</t-descriptions-item>
           <t-descriptions-item label="电话">{{ viewingCustomer.phone || '-' }}</t-descriptions-item>
           <t-descriptions-item label="地址" :span="2">{{ viewingCustomer.address || '-' }}</t-descriptions-item>
-          <t-descriptions-item label="备注" :span="2">{{ viewingCustomer.remark || '-' }}</t-descriptions-item>
+          <t-descriptions-item label="备注" :span="2"><span style="white-space: pre-line;">{{ viewingCustomer.remark || '-' }}</span></t-descriptions-item>
           <t-descriptions-item label="订单数">{{ viewingCustomer.orderCount ?? 0 }}</t-descriptions-item>
           <t-descriptions-item label="消费总额">¥{{ (viewingCustomer.totalConsumption ?? 0).toFixed(2) }}</t-descriptions-item>
           <t-descriptions-item label="创建时间" :span="2">{{ formatDate(viewingCustomer.createdAt) }}</t-descriptions-item>

@@ -86,22 +86,24 @@
             </template>
 
             <template #unitPrice="{ row: _row, rowIndex }">
-              <t-input-number
+              <t-input
                 v-model="formData.items[rowIndex].unitPrice"
+                type="number"
                 :min="0"
-                :decimal-places="2"
+                step="0.01"
                 placeholder="单价"
-                :style="{ width: '120px' }"
+                :style="{ width: '220px' }"
               />
             </template>
 
             <template #quantity="{ row: _row, rowIndex }">
-              <t-input-number
+              <t-input
                 v-model="formData.items[rowIndex].quantity"
+                type="number"
                 :min="1"
-                :decimal-places="0"
+                step="1"
                 placeholder="数量"
-                :style="{ width: '140px' }"
+                :style="{ width: '220px' }"
               />
             </template>
 
@@ -181,6 +183,7 @@ const activeProducts = computed(() => products.value.filter(p => p.status === 1)
 function handleProductSelect(productId: number, rowIndex: number) {
   const p = products.value.find(p => p.id === productId)
   if (p) {
+    formData.items[rowIndex].productId = productId
     formData.items[rowIndex].productName = p.name
     formData.items[rowIndex].productSpec = p.spec || ''
     formData.items[rowIndex].unitPrice = Number(p.defaultPrice) || 0
@@ -306,6 +309,7 @@ async function onSubmit({ validateResult }: { validateResult: any }): Promise<vo
       invoiceRequirement: formData.invoiceRequirement,
       remark: formData.remark,
       items: formData.items.map(item => ({
+        productId: item.productId || undefined,
         productName: item.productName,
         productSpec: item.productSpec,
         unitPrice: item.unitPrice,

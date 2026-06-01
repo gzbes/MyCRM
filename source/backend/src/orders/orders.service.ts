@@ -201,23 +201,27 @@ export class OrdersService {
   }
 
   private async changeOrderStatus(order: Order, newStatus: string, operator: string): Promise<Order> {
-    // 校验流转合法性
+    // 校验状态值合法性（自由选择，不限制流转顺序）
+    const VALID_ORDER_STATUSES = ['待处理', '生产中', '已发货', '已完成', '已取消'];
+    if (!VALID_ORDER_STATUSES.includes(newStatus)) {
+      throw new BadRequestException(`无效的订单状态: ${newStatus}`);
+    }
+
+    // 已完成和已取消是终态，不可再变更
+    if (['已完成', '已取消'].includes(order.orderStatus)) {
+      throw new BadRequestException('当前订单已是终态，无法变更');
+    }
+
+    // 不能设为与当前相同
+    if (newStatus === order.orderStatus) {
+      throw new BadRequestException('新状态与当前状态相同');
+    }
+
+    // 规则：若已开票则阻止取消
     if (newStatus === '已取消') {
-      if (!CANCELABLE_STATUSES.includes(order.orderStatus)) {
-        throw new BadRequestException('当前订单状态不允许取消');
-      }
-      // 规则：若已开票则阻止取消
       if (order.invoiceStatus && order.invoiceStatus.includes('已开')) {
         throw new ConflictException('该订单已开票，无法取消');
       }
-    } else if (ORDER_STATUS_FLOW.includes(newStatus)) {
-      const currentIdx = ORDER_STATUS_FLOW.indexOf(order.orderStatus);
-      const newIdx = ORDER_STATUS_FLOW.indexOf(newStatus);
-      if (newIdx <= currentIdx) {
-        throw new BadRequestException('订单状态只能向前流转');
-      }
-    } else {
-      throw new BadRequestException(`无效的订单状态: ${newStatus}`);
     }
 
     const oldStatus = order.orderStatus;

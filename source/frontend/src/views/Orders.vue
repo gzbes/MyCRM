@@ -13,7 +13,7 @@
         <t-col>
           <t-input
             v-model="keyword"
-            placeholder="搜索订单编号/客户/备注"
+            placeholder="搜索客户/备注"
             clearable
             style="width: 280px"
             @enter="handleSearch"
@@ -41,23 +41,69 @@
       <template #customer="{ row }">
         {{ row.customer?.name || '-' }}
       </template>
+      <template #orderDate="{ row }">
+        {{ row.orderDate }}
+      </template>
       <template #totalAmount="{ row }">
         ¥{{ parseFloat(row.totalAmount).toFixed(2) }}
       </template>
+      <template #receivedAmount="{ row }">
+        ¥{{ parseFloat(row.receivedAmount).toFixed(2) }}
+      </template>
       <template #orderStatus="{ row }">
-        <StatusBar :all-statuses="allOrderStatuses" :current-status="row.orderStatus" :status-theme-map="orderStatusThemeMap" />
+        <t-select
+          :model-value="row.orderStatus"
+          :style="{ width: '120px' }"
+          size="small"
+          @change="(val: string) => handleStatusChange(row, 'order', val)"
+        >
+          <t-option
+            v-for="s in allOrderStatuses"
+            :key="s"
+            :value="s"
+            :label="s"
+            :disabled="s === row.orderStatus || (isTerminalStatus(row.orderStatus))"
+          />
+        </t-select>
       </template>
       <template #invoiceStatus="{ row }">
-        <t-tag :theme="invoiceStatusThemeMap[row.invoiceStatus] || 'default'" variant="light">
-          {{ invoiceStatusLabelMap[row.invoiceStatus] || row.invoiceStatus }}
-        </t-tag>
+        <t-select
+          :model-value="row.invoiceStatus"
+          :style="{ width: '120px' }"
+          size="small"
+          @change="(val: string) => handleStatusChange(row, 'invoice', val)"
+        >
+          <t-option
+            v-for="s in allInvoiceStatusesForSelect"
+            :key="s"
+            :value="s"
+            :label="s === '已开增值税专用发票' ? '已开专票' : s === '已开普通发票' ? '已开普票' : s"
+            :disabled="s === row.invoiceStatus"
+          />
+        </t-select>
       </template>
       <template #paymentStatus="{ row }">
-        <StatusBar :all-statuses="allPaymentStatuses" :current-status="row.paymentStatus" :status-theme-map="paymentStatusThemeMap" />
+        <t-select
+          :model-value="row.paymentStatus"
+          :style="{ width: '120px' }"
+          size="small"
+          @change="(val: string) => handleStatusChange(row, 'payment', val)"
+        >
+          <t-option
+            v-for="s in allPaymentStatuses"
+            :key="s"
+            :value="s"
+            :label="s"
+            :disabled="s === row.paymentStatus"
+          />
+        </t-select>
+      </template>
+      <template #actualDeliveryDate="{ row }">
+        {{ getLatestDeliveryDate(row) }}
       </template>
       <template #action="{ row }">
         <t-space>
-          <t-link theme="primary" @click="handleView(row)">查看</t-link>
+          <t-link theme="primary" @click="handleEdit(row)">编辑</t-link>
           <t-link theme="danger" @click="handleDelete(row.id)">删除</t-link>
         </t-space>
       </template>
@@ -68,7 +114,6 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import StatusBar from '@/components/StatusBar.vue'
 import { orderApi, type Order } from '@/api/order'
 import { MessagePlugin } from 'tdesign-vue-next'
 
@@ -87,30 +132,30 @@ const pagination = reactive({
 const columns = [
   { colKey: 'action', title: '操作', width: 120, fixed: 'left' },
   { colKey: 'customer', title: '客户', width: 140, sorter: true },
+  { colKey: 'customerOrderNo', title: '客户单号', width: 130 },
   { colKey: 'orderDate', title: '下单日期', width: 110, sorter: true },
+  { colKey: 'deliveryDate', title: '订单交期', width: 110 },
+  { colKey: 'orderPaymentMethod', title: '付款方式', width: 100 },
   { colKey: 'totalAmount', title: '总金额', width: 120, sorter: true },
-  { colKey: 'orderStatus', title: '订单状态', width: 200, sorter: true },
-  { colKey: 'invoiceStatus', title: '开票状态', width: 130, sorter: true },
-  { colKey: 'paymentStatus', title: '收款状态', width: 130, sorter: true },
-  { colKey: 'code', title: '订单编号', width: 180 },
+  { colKey: 'orderStatus', title: '订单状态', width: 140, sorter: true },
+  { colKey: 'invoiceStatus', title: '开票状态', width: 140, sorter: true },
+  { colKey: 'paymentStatus', title: '收款状态', width: 140, sorter: true },
+  { colKey: 'actualDeliveryDate', title: '实际交期', width: 110 },
+  { colKey: 'receivedAmount', title: '已收金额', width: 120 },
 ]
 
-// 全状态显示 - 所有可能状态的完整列表
+// 全状态显示
 const allOrderStatuses = ['待处理', '生产中', '已发货', '已完成', '已取消']
-const allInvoiceStatuses = ['未开票', '已开增值税专用发票', '已开普通发票']
+const allInvoiceStatusesForSelect = ['未开票', '已开增值税专用发票', '已开普通发票']
 const allPaymentStatuses = ['未收款', '部分收款', '已结清']
 
-// 状态主题映射
-const orderStatusThemeMap: Record<string, string> = { '待处理': 'warning', '生产中': 'primary', '已发货': 'success', '已完成': 'success', '已取消': 'danger' }
-const invoiceStatusThemeMap: Record<string, string> = { '未开票': 'warning', '已开增值税专用发票': 'success', '已开普通发票': 'success' }
-const paymentStatusThemeMap: Record<string, string> = { '未收款': 'warning', '部分收款': 'warning', '已结清': 'success' }
+function isTerminalStatus(status: string): boolean {
+  return ['已完成', '已取消'].includes(status)
+}
 
-// 开票状态显示标签简化映射
-const invoiceStatusLabelMap: Record<string, string> = {
-  '未开票': '未开票',
-  '已开增值税专用发票': '已开专票',
-  '已开普通发票': '已开普票',
-  '无需开票': '无需开票',
+function getLatestDeliveryDate(order: Order): string {
+  if (!order.deliveries || order.deliveries.length === 0) return '-'
+  return order.deliveries[order.deliveries.length - 1]?.actualDeliveryDate || '-'
 }
 
 async function loadOrders() {
@@ -132,6 +177,21 @@ async function loadOrders() {
   }
 }
 
+async function handleStatusChange(row: Order, statusType: string, newStatus: string) {
+  if (newStatus === row.orderStatus && statusType === 'order') return
+  if (newStatus === row.invoiceStatus && statusType === 'invoice') return
+  if (newStatus === row.paymentStatus && statusType === 'payment') return
+
+  try {
+    const payload: any = { statusType, newStatus }
+    await orderApi.changeStatus(row.id, payload)
+    MessagePlugin.success('状态更新成功')
+    await loadOrders()
+  } catch (err: any) {
+    MessagePlugin.error(err?.response?.data?.message || '状态更新失败')
+  }
+}
+
 function handleSearch() { pagination.page = 1; loadOrders() }
 function handlePageChange(pageInfo: any) { pagination.page = pageInfo.page; pagination.pageSize = pageInfo.pageSize; loadOrders() }
 function handleSortChange(ctx: any) {
@@ -140,7 +200,7 @@ function handleSortChange(ctx: any) {
   loadOrders()
 }
 function handleAdd() { router.push('/orders/new') }
-function handleView(order: Order) { router.push(`/orders/${order.id}`) }
+function handleEdit(order: Order) { router.push(`/orders/${order.id}`) }
 
 async function handleDelete(id: number) {
   try {

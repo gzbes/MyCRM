@@ -6,6 +6,7 @@ export interface OrderItem {
   productId?: number
   productName: string
   productSpec?: string
+  customerProductCode?: string
   unitPrice: string
   quantity: number
   subtotal: string
@@ -37,12 +38,23 @@ export interface StatusLogData {
   createdAt: string
 }
 
+export interface DeliveryInfo {
+  actualDeliveryDate: string
+  deliveryAddress: string
+  freight: number
+}
+
 export interface Order {
   id: number
   code: string
   customerId: number
   customer?: { id: number; name: string; code: string }
+  customerOrderNo?: string
   orderDate: string
+  deliveryDate?: string
+  deliveryAddress?: string
+  orderPaymentMethod?: string
+  deliveries?: DeliveryInfo[]
   totalAmount: string
   orderStatus: string
   invoiceStatus: string
@@ -65,9 +77,15 @@ export interface Order {
 export interface CreateOrderData {
   customerId: number
   orderDate?: string
+  customerOrderNo?: string
+  deliveryDate?: string
+  deliveryAddress?: string
+  orderPaymentMethod?: string
   remark?: string
   invoiceRequirement?: string
-  items: { productId?: number; productName: string; productSpec?: string; unitPrice: number; quantity: number }[]
+  invoiceNo?: string
+  deliveries?: DeliveryInfo[]
+  items: { productId?: number; productName: string; productSpec?: string; customerProductCode?: string; unitPrice: number; quantity: number }[]
 }
 
 export interface OrderListResult {

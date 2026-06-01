@@ -33,6 +33,7 @@ export class OrdersService {
       productId: item.productId || undefined,
       productName: item.productName,
       productSpec: item.productSpec || undefined,
+      customerProductCode: item.customerProductCode || undefined,
       unitPrice: item.unitPrice,
       quantity: item.quantity,
       subtotal: Math.round(item.unitPrice * item.quantity * 100) / 100,
@@ -44,6 +45,10 @@ export class OrdersService {
       code,
       customerId: createOrderDto.customerId,
       orderDate,
+      customerOrderNo: createOrderDto.customerOrderNo || undefined,
+      deliveryDate: createOrderDto.deliveryDate || undefined,
+      deliveryAddress: createOrderDto.deliveryAddress || undefined,
+      orderPaymentMethod: createOrderDto.orderPaymentMethod || undefined,
       totalAmount: Math.round(totalAmount * 100) / 100,
       invoiceRequirement: createOrderDto.invoiceRequirement || '无需开票',
       invoiceStatus: createOrderDto.invoiceRequirement === '无需开票' ? '无需开票' : '未开票',
@@ -129,7 +134,7 @@ export class OrdersService {
     const order = await this.findOne(id);
 
     // 发票号/开票要求可随时修改，不受订单状态限制
-    const hasOrderFields = updateOrderDto.items || updateOrderDto.orderDate || updateOrderDto.remark !== undefined;
+    const hasOrderFields = updateOrderDto.items || updateOrderDto.orderDate || updateOrderDto.customerOrderNo !== undefined || updateOrderDto.deliveryDate !== undefined || updateOrderDto.deliveryAddress !== undefined || updateOrderDto.orderPaymentMethod !== undefined || updateOrderDto.deliveries !== undefined || updateOrderDto.remark !== undefined;
     const isOnlyInvoiceUpdate = !hasOrderFields && (updateOrderDto.invoiceNo !== undefined || updateOrderDto.invoiceRequirement !== undefined);
 
     if (!isOnlyInvoiceUpdate && !['待处理', '生产中'].includes(order.orderStatus)) {
@@ -146,6 +151,7 @@ export class OrdersService {
           productId: item.productId || undefined,
           productName: item.productName,
           productSpec: item.productSpec || undefined,
+          customerProductCode: item.customerProductCode || undefined,
           unitPrice: item.unitPrice,
           quantity: item.quantity,
           subtotal: Math.round(item.unitPrice * item.quantity * 100) / 100,
@@ -158,6 +164,11 @@ export class OrdersService {
     }
 
     if (updateOrderDto.orderDate) order.orderDate = updateOrderDto.orderDate;
+    if (updateOrderDto.customerOrderNo !== undefined) order.customerOrderNo = updateOrderDto.customerOrderNo;
+    if (updateOrderDto.deliveryDate !== undefined) order.deliveryDate = updateOrderDto.deliveryDate;
+    if (updateOrderDto.deliveryAddress !== undefined) order.deliveryAddress = updateOrderDto.deliveryAddress;
+    if (updateOrderDto.orderPaymentMethod !== undefined) order.orderPaymentMethod = updateOrderDto.orderPaymentMethod;
+    if (updateOrderDto.deliveries !== undefined) order.deliveries = updateOrderDto.deliveries;
     if (updateOrderDto.remark !== undefined) order.remark = updateOrderDto.remark;
     if (updateOrderDto.invoiceNo !== undefined) order.invoiceNo = updateOrderDto.invoiceNo;
     if (updateOrderDto.invoiceRequirement) {

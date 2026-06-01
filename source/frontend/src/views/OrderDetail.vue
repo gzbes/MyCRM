@@ -7,7 +7,7 @@
           <template #icon><t-icon name="arrow-left" /></template>
           返回列表
         </t-button>
-        <h2 class="page-title" v-if="order">订单详情 - {{ order.code }}</h2>
+        <h2 class="page-title" v-if="order">订单详情</h2>
       </t-space>
     </div>
 
@@ -16,9 +16,12 @@
         <!-- 第一部分：订单头信息（含订单状态操作） -->
         <t-card title="订单信息" class="section-card">
           <t-descriptions bordered layout="vertical" :column="3">
-            <t-descriptions-item label="订单编号">{{ order.code }}</t-descriptions-item>
             <t-descriptions-item label="客户名称">{{ order.customer?.name || '-' }}</t-descriptions-item>
+            <t-descriptions-item label="客户单号">{{ order.customerOrderNo || '-' }}</t-descriptions-item>
             <t-descriptions-item label="下单日期">{{ order.orderDate || '-' }}</t-descriptions-item>
+            <t-descriptions-item label="订单交期">{{ order.deliveryDate || '-' }}</t-descriptions-item>
+            <t-descriptions-item label="送货地址">{{ order.deliveryAddress || '-' }}</t-descriptions-item>
+            <t-descriptions-item label="付款方式">{{ order.orderPaymentMethod || '-' }}</t-descriptions-item>
             <t-descriptions-item label="订单状态" :span="3">
               <div class="status-with-actions">
                 <StatusBar :all-statuses="allOrderStatuses" :current-status="order.orderStatus" :status-theme-map="orderStatusThemeMap" />
@@ -170,6 +173,32 @@
           <t-empty v-else description="暂无收款记录" style="margin-top: 12px" />
         </t-card>
 
+        <!-- 第五部分：发货信息 -->
+        <t-card title="发货信息" class="section-card">
+          <div class="delivery-actions">
+            <t-button variant="outline" size="small" @click="addDelivery">
+              <template #icon><t-icon name="add" /></template>
+              添加发货记录
+            </t-button>
+          </div>
+          <t-table
+            :data="order.deliveries || []"
+            :columns="deliveryColumns"
+            row-key="index"
+            stripe
+            hover
+            size="small"
+          >
+            <template #action="{ rowIndex }">
+              <t-space>
+                <t-link theme="primary" @click="editDelivery(rowIndex)">编辑</t-link>
+                <t-link theme="danger" @click="removeDelivery(rowIndex)">删除</t-link>
+              </t-space>
+            </template>
+          </t-table>
+          <t-empty v-if="!order.deliveries || order.deliveries.length === 0" description="暂无发货记录" style="margin-top: 12px" />
+        </t-card>
+
         <!-- 第六部分：附件管理 -->
         <t-card title="附件管理" class="section-card">
           <div class="attachment-upload">
@@ -237,6 +266,41 @@
         </t-card>
       </template>
     </t-loading>
+
+    <!-- 发货信息编辑对话框 -->
+    <t-dialog
+      v-model:visible="deliveryDialogVisible"
+      :header="editingDeliveryIndex >= 0 ? '编辑发货记录' : '添加发货记录'"
+      :confirmBtn="'确认'"
+      :cancelBtn="'取消'"
+      @confirm="handleDeliveryConfirm"
+      width="500px"
+    >
+      <t-form :data="deliveryForm" label-width="100px">
+        <t-form-item label="实际交期" name="actualDeliveryDate">
+          <t-date-picker
+            v-model="deliveryForm.actualDeliveryDate"
+            placeholder="请选择实际交期"
+            style="width: 100%"
+          />
+        </t-form-item>
+        <t-form-item label="送货地址" name="deliveryAddress">
+          <t-input
+            v-model="deliveryForm.deliveryAddress"
+            placeholder="请输入送货地址"
+          />
+        </t-form-item>
+        <t-form-item label="运费" name="freight">
+          <t-input-number
+            v-model="deliveryForm.freight"
+            :min="0"
+            :decimal-places="2"
+            placeholder="请输入运费"
+            style="width: 100%"
+          />
+        </t-form-item>
+      </t-form>
+    </t-dialog>
 
     <!-- 状态变更对话框 -->
     <t-dialog
@@ -355,6 +419,7 @@ const statusForm = ref({
 const itemColumns = [
   { colKey: 'productName', title: '产品名称' },
   { colKey: 'productSpec', title: '规格型号' },
+  { colKey: 'customerProductCode', title: '客户货物编码' },
   { colKey: 'unitPrice', title: '单价', cell: (_h: any, { row }: any) => `¥ ${row.unitPrice}` },
   { colKey: 'quantity', title: '数量' },
   { colKey: 'subtotal', title: '小计', cell: (_h: any, { row }: any) => `¥ ${row.subtotal}` },
@@ -374,6 +439,67 @@ const paymentRatio = computed(() => {
   const ratio = (Number(order.value.receivedAmount) / Number(order.value.totalAmount)) * 100
   return ratio.toFixed(1)
 })
+
+// 发货表格列
+const deliveryColumns = [
+  { colKey: 'index', title: '#', width: 40, cell: (_h: any, { rowIndex }: any) => rowIndex + 1 },
+  { colKey: 'actualDeliveryDate', title: '实际交期' },
+  { colKey: 'deliveryAddress', title: '送货地址' },
+  { colKey: 'freight', title: '运费', cell: (_h: any, { row }: any) => `¥${Number(row.freight).toFixed(2)}` },
+  { colKey: 'action', title: '操作', width: 120 },
+]
+
+// 发货信息对话框
+const deliveryDialogVisible = ref(false)
+const editingDeliveryIndex = ref(-1)
+const deliveryForm = ref({ actualDeliveryDate: '', deliveryAddress: '', freight: 0 })
+
+function addDelivery() {
+  editingDeliveryIndex.value = -1
+  deliveryForm.value = { actualDeliveryDate: '', deliveryAddress: '', freight: 0 }
+  deliveryDialogVisible.value = true
+}
+
+function editDelivery(index: number) {
+  const d = (order.value?.deliveries || [])[index]
+  if (!d) return
+  editingDeliveryIndex.value = index
+  deliveryForm.value = { ...d }
+  deliveryDialogVisible.value = true
+}
+
+async function removeDelivery(index: number) {
+  if (!order.value) return
+  const deliveries = [...(order.value.deliveries || [])]
+  deliveries.splice(index, 1)
+  try {
+    const updated = await orderApi.update(order.value.id, { deliveries })
+    order.value = updated
+    await MessagePlugin.success('发货记录已删除')
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || '操作失败'
+    await MessagePlugin.error(msg)
+  }
+}
+
+async function handleDeliveryConfirm() {
+  if (!order.value) return
+  const deliveries = [...(order.value.deliveries || [])]
+  if (editingDeliveryIndex.value >= 0) {
+    deliveries[editingDeliveryIndex.value] = { ...deliveryForm.value }
+  } else {
+    deliveries.push({ ...deliveryForm.value })
+  }
+  try {
+    const updated = await orderApi.update(order.value.id, { deliveries })
+    order.value = updated
+    deliveryDialogVisible.value = false
+    await MessagePlugin.success('发货记录已保存')
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || '操作失败'
+    await MessagePlugin.error(msg)
+  }
+}
 
 // 附件表格列
 const attachmentColumns = [

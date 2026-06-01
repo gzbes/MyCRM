@@ -15,6 +15,9 @@ export class OrderItem {
   @Column({ type: 'varchar', length: 100, comment: '产品名称(快照)' })
   productName: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true, default: null, comment: '客户货物编码' })
+  customerProductCode: string;
+
   @Column({ type: 'varchar', length: 100, nullable: true, default: null, comment: '规格(快照)' })
   productSpec: string;
 

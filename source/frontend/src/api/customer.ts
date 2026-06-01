@@ -1,11 +1,21 @@
 import api from './index'
 
+export interface DeliveryAddress {
+  address: string
+  contact?: string
+  phone?: string
+  isDefault?: boolean
+}
+
 export interface Customer {
   id: number
   code: string
   name: string
+  customerCode?: string
   contact?: string
   phone?: string
+  paymentMethod?: string
+  deliveryAddresses?: DeliveryAddress[]
   address?: string
   remark?: string
   orderCount?: number
@@ -17,8 +27,11 @@ export interface Customer {
 
 export interface CreateCustomerData {
   name: string
+  customerCode?: string
   contact?: string
   phone?: string
+  paymentMethod?: string
+  deliveryAddresses?: DeliveryAddress[]
   address?: string
   remark?: string
 }
@@ -51,6 +64,10 @@ export const customerApi = {
 
   update(id: number, data: Partial<CreateCustomerData>) {
     return api.patch<any, Customer>(`/customers/${id}`, data)
+  },
+
+  updateDeliveryAddresses(id: number, deliveryAddresses: DeliveryAddress[]) {
+    return api.patch<any, Customer>(`/customers/${id}`, { deliveryAddresses })
   },
 
   delete(id: number) {

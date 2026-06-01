@@ -85,7 +85,7 @@ export class ReportsService {
     const raw = await this.customerRepository
       .createQueryBuilder('c')
       .select('c.id', 'customerId')
-      .addSelect('c.code', 'customerCode')
+      .addSelect('COALESCE(c.customerCode, c.code)', 'customerCode')
       .addSelect('c.name', 'customerName')
       .addSelect('c.contact', 'contact')
       .addSelect('COUNT(DISTINCT o.id)', 'orderCount')
@@ -209,7 +209,7 @@ export class ReportsService {
       }
       case 'customer': {
         const data = await this.byCustomer();
-        csv = BOM + '客户编号,客户名称,联系人,订单数,累计消费,已收款,未结清\n';
+        csv = BOM + '客户编码,客户名称,联系人,订单数,累计消费,已收款,未结清\n';
         data.forEach(r => {
           csv += `"${r.customerCode}","${r.customerName}","${r.contact}",${r.orderCount},${r.totalConsumption.toFixed(2)},${r.totalReceived.toFixed(2)},${r.outstanding.toFixed(2)}\n`;
         });
@@ -273,7 +273,7 @@ export class ReportsService {
         // ── 客户信息 ──
         doc.fontSize(11).font('SimFang');
         doc.text(`客户名称：${customer.name}`);
-        doc.text(`客户编号：${customer.code}`);
+        doc.text(`客户编码：${customer.customerCode || customer.code}`);
         if (customer.contact) doc.text(`联 系 人：${customer.contact}`);
         if (customer.phone) doc.text(`联系电话：${customer.phone}`);
         if (customer.address) doc.text(`地　　址：${customer.address}`);

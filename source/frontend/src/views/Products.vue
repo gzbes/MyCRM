@@ -14,7 +14,7 @@
         <t-col>
           <t-input
             v-model="keyword"
-            placeholder="搜索产品名称/规格"
+            placeholder="搜索货物规格/单位"
             clearable
             style="width: 280px"
             @enter="handleSearch"
@@ -71,10 +71,10 @@
       @close="handleClose"
     >
       <t-form :data="formData" label-align="right" :label-width="100">
-        <t-form-item label="名称" name="name">
-          <t-input v-model="formData.name" placeholder="请输入产品名称" />
+        <t-form-item label="货物规格" name="name">
+          <t-input v-model="formData.name" placeholder="请输入货物规格" />
         </t-form-item>
-        <t-form-item label="规格" name="spec">
+        <t-form-item label="单位" name="spec">
           <t-input v-model="formData.spec" placeholder="如：A4/500张/包" />
         </t-form-item>
         <t-form-item label="默认价格" name="defaultPrice">
@@ -82,7 +82,9 @@
             v-model="formData.defaultPrice"
             :min="0"
             :decimal-places="2"
-            placeholder="请输入价格"
+            hide-button
+            placeholder="请输入单价"
+            style="width: 240px"
           >
             <template #suffix>元</template>
           </t-input-number>
@@ -122,8 +124,8 @@ const formData = ref({
 })
 
 const columns = [
-  { colKey: 'name', title: '名称', width: 160, ellipsis: true, sorter: true },
-  { colKey: 'spec', title: '规格', width: 140, ellipsis: true, sorter: true },
+  { colKey: 'name', title: '货物规格', width: 160, ellipsis: true, sorter: true },
+  { colKey: 'spec', title: '单位', width: 140, ellipsis: true, sorter: true },
   { colKey: 'defaultPrice', title: '默认价格', width: 120, sorter: true },
   { colKey: 'status', title: '状态', width: 100, sorter: true },
   { colKey: 'remark', title: '备注', width: 200, ellipsis: true },

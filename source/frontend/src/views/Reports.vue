@@ -173,7 +173,7 @@ const productColumns = [
 ]
 
 const customerColumns = [
-  { colKey: 'customerCode', title: '客户编号', width: 160 },
+  { colKey: 'customerCode', title: '客户编码', width: 160 },
   { colKey: 'customerName', title: '客户名称', width: 140 },
   { colKey: 'contact', title: '联系人', width: 100 },
   { colKey: 'orderCount', title: '订单数', width: 70 },

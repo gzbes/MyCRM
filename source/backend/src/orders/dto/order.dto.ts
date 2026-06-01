@@ -14,6 +14,10 @@ export class OrderItemDto {
   @IsOptional()
   productSpec?: string;
 
+  @IsString()
+  @IsOptional()
+  customerProductCode?: string;
+
   @Type(() => Number)
   @IsNumber()
   @Min(0, { message: '单价不能小于0' })
@@ -36,6 +40,22 @@ export class CreateOrderDto {
 
   @IsString()
   @IsOptional()
+  customerOrderNo?: string;
+
+  @IsDateString()
+  @IsOptional()
+  deliveryDate?: string;
+
+  @IsString()
+  @IsOptional()
+  deliveryAddress?: string;
+
+  @IsString()
+  @IsOptional()
+  orderPaymentMethod?: string;
+
+  @IsString()
+  @IsOptional()
   remark?: string;
 
   @IsString()
@@ -54,6 +74,26 @@ export class UpdateOrderDto {
   @IsDateString()
   @IsOptional()
   orderDate?: string;
+
+  @IsString()
+  @IsOptional()
+  customerOrderNo?: string;
+
+  @IsDateString()
+  @IsOptional()
+  deliveryDate?: string;
+
+  @IsString()
+  @IsOptional()
+  deliveryAddress?: string;
+
+  @IsString()
+  @IsOptional()
+  orderPaymentMethod?: string;
+
+  @IsArray()
+  @IsOptional()
+  deliveries?: { actualDeliveryDate: string; deliveryAddress: string; freight: number }[];
 
   @IsString()
   @IsOptional()

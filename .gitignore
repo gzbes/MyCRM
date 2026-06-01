@@ -147,3 +147,9 @@ nul
 # Temp / artifact files
 *templogin*
 temp_*.json
+
+# Uploaded files (user-generated content)
+uploads/
+
+# Fake/placeholder font files (real fonts: simfang.ttf, simhei.ttf)
+NotoSansSC-*

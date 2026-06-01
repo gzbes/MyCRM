@@ -19,6 +19,15 @@
             clearable
             filterable
             style="width: 400px"
+            @change="handleCustomerChange"
+          />
+        </t-form-item>
+
+        <t-form-item label="客户单号" name="customerOrderNo">
+          <t-input
+            v-model="formData.customerOrderNo"
+            placeholder="请输入客户单号（选填）"
+            style="width: 400px"
           />
         </t-form-item>
 
@@ -28,6 +37,36 @@
             placeholder="请选择下单日期"
             style="width: 240px"
           />
+        </t-form-item>
+
+        <t-form-item label="订单交期" name="deliveryDate">
+          <t-date-picker
+            v-model="formData.deliveryDate"
+            placeholder="请选择订单交期（选填）"
+            style="width: 240px"
+          />
+        </t-form-item>
+
+        <t-form-item label="送货地址" name="deliveryAddress">
+          <t-input
+            v-model="formData.deliveryAddress"
+            placeholder="选择客户后自动带出（可修改）"
+            style="width: 400px"
+          />
+        </t-form-item>
+
+        <t-form-item label="付款方式" name="orderPaymentMethod">
+          <t-select
+            v-model="formData.orderPaymentMethod"
+            placeholder="选择客户后自动带出（可修改）"
+            clearable
+            style="width: 240px"
+          >
+            <t-option value="银行转账" label="银行转账" />
+            <t-option value="微信" label="微信" />
+            <t-option value="支付宝" label="支付宝" />
+            <t-option value="现金" label="现金" />
+          </t-select>
         </t-form-item>
 
         <t-form-item label="开票要求" name="invoiceRequirement">
@@ -82,6 +121,14 @@
                 v-model="formData.items[rowIndex].productSpec"
                 placeholder="规格型号"
                 :style="{ width: '120px' }"
+              />
+            </template>
+
+            <template #customerProductCode="{ row: _row, rowIndex }">
+              <t-input
+                v-model="formData.items[rowIndex].customerProductCode"
+                placeholder="客户编码"
+                :style="{ width: '130px' }"
               />
             </template>
 
@@ -192,16 +239,21 @@ function handleProductSelect(productId: number, rowIndex: number) {
 
 const formData = reactive({
   customerId: undefined as number | undefined,
+  customerOrderNo: '',
   orderDate: new Date().toISOString().slice(0, 10),
+  deliveryDate: '',
+  deliveryAddress: '',
+  orderPaymentMethod: '',
   invoiceRequirement: '无需开票',
   remark: '',
   items: [{
     productId: undefined as number | undefined,
     productName: '',
     productSpec: '',
+    customerProductCode: '',
     unitPrice: 0,
     quantity: 1
-  }] as { productId?: number; productName: string; productSpec: string; unitPrice: number; quantity: number }[]
+  }] as { productId?: number; productName: string; productSpec: string; customerProductCode: string; unitPrice: number; quantity: number }[]
 })
 
 const formRules = {
@@ -212,6 +264,7 @@ const formRules = {
 const itemColumns = [
   { colKey: 'productName', title: '产品名称', cell: 'productName' },
   { colKey: 'productSpec', title: '规格型号', cell: 'productSpec' },
+  { colKey: 'customerProductCode', title: '客户货物编码', cell: 'customerProductCode' },
   { colKey: 'unitPrice', title: '单价', cell: 'unitPrice' },
   { colKey: 'quantity', title: '数量', cell: 'quantity' },
   { colKey: 'subtotal', title: '小计', cell: 'subtotal' },
@@ -228,11 +281,29 @@ function formatAmount(val: number): string {
   return '¥' + val.toFixed(2)
 }
 
+function handleCustomerChange(customerId: number) {
+  const customer = customers.value.find(c => c.id === customerId)
+  if (customer) {
+    // 自动带出默认送货地址
+    const defaultAddr = customer.deliveryAddresses?.find(a => a.isDefault)
+    if (defaultAddr) {
+      formData.deliveryAddress = defaultAddr.address
+    } else if (customer.deliveryAddresses && customer.deliveryAddresses.length > 0) {
+      formData.deliveryAddress = customer.deliveryAddresses[0].address
+    }
+    // 自动带出默认付款方式
+    if (customer.paymentMethod) {
+      formData.orderPaymentMethod = customer.paymentMethod
+    }
+  }
+}
+
 function addItem(): void {
   formData.items.push({
     productId: undefined,
     productName: '',
     productSpec: '',
+    customerProductCode: '',
     unitPrice: 0,
     quantity: 1
   })
@@ -270,7 +341,11 @@ async function loadOrder(id: number): Promise<void> {
   try {
     const order: Order = await orderApi.getOne(id)
     formData.customerId = order.customerId
+    formData.customerOrderNo = order.customerOrderNo || ''
     formData.orderDate = order.orderDate ? order.orderDate.slice(0, 10) : new Date().toISOString().slice(0, 10)
+    formData.deliveryDate = order.deliveryDate || ''
+    formData.deliveryAddress = order.deliveryAddress || ''
+    formData.orderPaymentMethod = order.orderPaymentMethod || ''
     formData.invoiceRequirement = order.invoiceRequirement || '无需开票'
     formData.remark = order.remark || ''
     if (order.items && order.items.length > 0) {
@@ -278,6 +353,7 @@ async function loadOrder(id: number): Promise<void> {
         productId: item.productId || undefined,
         productName: item.productName || '',
         productSpec: item.productSpec || '',
+        customerProductCode: item.customerProductCode || '',
         unitPrice: item.unitPrice || 0,
         quantity: item.quantity || 1
       }))
@@ -303,15 +379,20 @@ async function onSubmit({ validateResult }: { validateResult: any }): Promise<vo
 
   submitting.value = true
   try {
-    const payload = {
+    const payload: any = {
       customerId: formData.customerId!,
       orderDate: formData.orderDate,
+      customerOrderNo: formData.customerOrderNo || undefined,
+      deliveryDate: formData.deliveryDate || undefined,
+      deliveryAddress: formData.deliveryAddress || undefined,
+      orderPaymentMethod: formData.orderPaymentMethod || undefined,
       invoiceRequirement: formData.invoiceRequirement,
       remark: formData.remark,
       items: formData.items.map(item => ({
         productId: item.productId || undefined,
         productName: item.productName,
         productSpec: item.productSpec,
+        customerProductCode: item.customerProductCode || undefined,
         unitPrice: item.unitPrice,
         quantity: item.quantity
       }))

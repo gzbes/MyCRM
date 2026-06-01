@@ -60,15 +60,26 @@
       @confirm="handleSubmit"
       @close="handleCloseDialog"
     >
-      <t-form :data="formData" label-align="right" :label-width="80">
+      <t-form :data="formData" label-align="right" :label-width="100">
         <t-form-item label="名称" name="name">
           <t-input v-model="formData.name" placeholder="请输入客户名称（必填）" />
+        </t-form-item>
+        <t-form-item label="客户编码" name="customerCode">
+          <t-input v-model="formData.customerCode" placeholder="请输入客户编码（可选）" />
         </t-form-item>
         <t-form-item label="联系人" name="contact">
           <t-input v-model="formData.contact" placeholder="请输入联系人" />
         </t-form-item>
         <t-form-item label="电话" name="phone">
           <t-input v-model="formData.phone" placeholder="请输入联系电话" />
+        </t-form-item>
+        <t-form-item label="付款方式" name="paymentMethod">
+          <t-select v-model="formData.paymentMethod" placeholder="请选择默认付款方式" clearable>
+            <t-option value="银行转账" label="银行转账" />
+            <t-option value="微信" label="微信" />
+            <t-option value="支付宝" label="支付宝" />
+            <t-option value="现金" label="现金" />
+          </t-select>
         </t-form-item>
         <t-form-item label="地址" name="address">
           <t-input v-model="formData.address" placeholder="请输入地址" />
@@ -88,10 +99,11 @@
     >
       <div v-if="viewingCustomer" class="customer-detail">
         <t-descriptions :column="2" bordered>
-          <t-descriptions-item label="编号">{{ viewingCustomer.code }}</t-descriptions-item>
+          <t-descriptions-item label="客户编码">{{ viewingCustomer.customerCode || '-' }}</t-descriptions-item>
           <t-descriptions-item label="名称">{{ viewingCustomer.name }}</t-descriptions-item>
           <t-descriptions-item label="联系人">{{ viewingCustomer.contact || '-' }}</t-descriptions-item>
           <t-descriptions-item label="电话">{{ viewingCustomer.phone || '-' }}</t-descriptions-item>
+          <t-descriptions-item label="付款方式">{{ viewingCustomer.paymentMethod || '-' }}</t-descriptions-item>
           <t-descriptions-item label="地址" :span="2">{{ viewingCustomer.address || '-' }}</t-descriptions-item>
           <t-descriptions-item label="备注" :span="2"><span style="white-space: pre-line;">{{ viewingCustomer.remark || '-' }}</span></t-descriptions-item>
           <t-descriptions-item label="订单数">{{ viewingCustomer.orderCount ?? 0 }}</t-descriptions-item>
@@ -99,6 +111,21 @@
           <t-descriptions-item label="创建时间" :span="2">{{ formatDate(viewingCustomer.createdAt) }}</t-descriptions-item>
           <t-descriptions-item label="更新时间" :span="2">{{ formatDate(viewingCustomer.updatedAt) }}</t-descriptions-item>
         </t-descriptions>
+        <!-- 送货地址列表 -->
+        <div class="delivery-address-section" v-if="viewingCustomer.deliveryAddresses && viewingCustomer.deliveryAddresses.length > 0">
+          <h4>送货地址</h4>
+          <t-table
+            :data="viewingCustomer.deliveryAddresses"
+            :columns="deliveryAddressColumns"
+            row-key="index"
+            max-height="200"
+            size="small"
+          >
+            <template #isDefault="{ row }">
+              <t-tag v-if="row.isDefault" theme="primary" size="small">默认</t-tag>
+            </template>
+          </t-table>
+        </div>
       </div>
     </t-dialog>
   </div>
@@ -127,25 +154,37 @@ const sortState = ref<{ sortBy: string; descending: boolean }>({
   descending: true
 })
 
+const deliveryAddressColumns = [
+  { colKey: 'address', title: '地址' },
+  { colKey: 'contact', title: '联系人' },
+  { colKey: 'phone', title: '电话' },
+  { colKey: 'isDefault', title: '默认', width: 60 },
+]
+
 const formData = ref<{
   name: string
+  customerCode: string
   contact: string
   phone: string
+  paymentMethod: string
   address: string
   remark: string
 }>({
   name: '',
+  customerCode: '',
   contact: '',
   phone: '',
+  paymentMethod: '',
   address: '',
   remark: ''
 })
 
 const columns = [
-  { colKey: 'code', title: '编号', width: 180, sorter: true },
   { colKey: 'name', title: '名称', width: 150, sorter: true },
+  { colKey: 'customerCode', title: '客户编码', width: 140 },
   { colKey: 'contact', title: '联系人', width: 120, sorter: true },
   { colKey: 'phone', title: '电话', width: 140, sorter: true },
+  { colKey: 'paymentMethod', title: '付款方式', width: 120 },
   { colKey: 'address', title: '地址', width: 200, ellipsis: true, sorter: true },
   { colKey: 'action', title: '操作', width: 180, fixed: 'right' }
 ]
@@ -195,8 +234,10 @@ const handleEdit = (customer: Customer) => {
   editingCustomer.value = customer
   formData.value = {
     name: customer.name,
+    customerCode: customer.customerCode || '',
     contact: customer.contact || '',
     phone: customer.phone || '',
+    paymentMethod: customer.paymentMethod || '',
     address: customer.address || '',
     remark: customer.remark || ''
   }
@@ -238,8 +279,10 @@ const handleCloseDialog = () => {
   editingCustomer.value = null
   formData.value = {
     name: '',
+    customerCode: '',
     contact: '',
     phone: '',
+    paymentMethod: '',
     address: '',
     remark: ''
   }

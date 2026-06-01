@@ -236,7 +236,9 @@ source/
 │   └── router/index.ts        # [改造]
 ├── UAT/                       # [新增] 用户验收测试文档
 │   ├── UAT2.md                # UAT 第 2 轮问题报告
-│   └── UAT2_Plan.md           # UAT 修复计划
+│   ├── UAT2_Plan.md           # UAT 修复计划
+│   ├── UAT3.md                # UAT 第 3 轮验收问题
+│   └── UAT3_Plan.md           # UAT 第 3 轮修复计划
 └── docs/
     ├── BR.md                  # 需求规格说明书
     └── Plan.md                # 开发计划
@@ -342,6 +344,32 @@ source/
 **UAT 测试文档：**
 - [UAT2.md](source/UAT/UAT2.md) — 验收问题报告
 - [UAT2_Plan.md](source/UAT/UAT2_Plan.md) — 分析和修复计划
+- [UAT3.md](source/UAT/UAT3.md) — 第 3 轮验收问题
+- [UAT3_Plan.md](source/UAT/UAT3_Plan.md) — 第 3 轮修复计划
+
+### UAT 第 3 轮（18 项：产品 3 + 客户 4 + 订单 11）
+
+| 编号 | 需求 | 类型 | 涉及文件 |
+|:----:|------|:----:|---------|
+| P1 | "名称"→"货物规格"，"规格"→"单位" | UI 标签 | [Products.vue](source/frontend/src/views/Products.vue) |
+| P2 | 默认单价取消 +/- 按钮，加宽至 240px | UI 优化 | [Products.vue](source/frontend/src/views/Products.vue) |
+| C1 | 隐藏内部 code，改用 customerCode | 功能变更 | [Customers.vue](source/frontend/src/views/Customers.vue), [Reports.vue](source/frontend/src/views/Reports.vue), [reports.service.ts](source/backend/src/reports/reports.service.ts) |
+| C2 | 新增可编辑 customerCode | 字段新增 | [customer.entity.ts](source/backend/src/common/database/entities/customer.entity.ts), [customer.dto.ts](source/backend/src/customers/dto/customer.dto.ts), [Customers.vue](source/frontend/src/views/Customers.vue), [customer.ts](source/frontend/src/api/customer.ts) |
+| C3 | 新增可编辑 paymentMethod | 字段新增 | [customer.entity.ts](source/backend/src/common/database/entities/customer.entity.ts), [Customers.vue](source/frontend/src/views/Customers.vue), [Orders.vue](source/frontend/src/views/Orders.vue) |
+| C4 | 新增多地址 deliveryAddresses | 字段新增 | [customer.entity.ts](source/backend/src/common/database/entities/customer.entity.ts), [Customers.vue](source/frontend/src/views/Customers.vue) |
+| O1 | 隐藏订单内部 code | UI 隐藏 | [Orders.vue](source/frontend/src/views/Orders.vue), [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| O2 | 新增 customerOrderNo | 字段新增 | [order.entity.ts](source/backend/src/common/database/entities/order.entity.ts), [OrderForm.vue](source/frontend/src/views/OrderForm.vue), [Orders.vue](source/frontend/src/views/Orders.vue), [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| O3 | 新增 deliveryDate | 字段新增 | [order.entity.ts](source/backend/src/common/database/entities/order.entity.ts), [OrderForm.vue](source/frontend/src/views/OrderForm.vue), [Orders.vue](source/frontend/src/views/Orders.vue) |
+| O4 | 送货地址从客户带出 | 功能变更 | [OrderForm.vue](source/frontend/src/views/OrderForm.vue), [order.entity.ts](source/backend/src/common/database/entities/order.entity.ts) |
+| O5 | 付款方式从客户带出 | 功能变更 | [OrderForm.vue](source/frontend/src/views/OrderForm.vue), [order.entity.ts](source/backend/src/common/database/entities/order.entity.ts), [Orders.vue](source/frontend/src/views/Orders.vue), [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| O6 | 明细行新增 customerProductCode | 字段新增 | [order-item.entity.ts](source/backend/src/common/database/entities/order-item.entity.ts), [OrderForm.vue](source/frontend/src/views/OrderForm.vue), [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| O7 | 发货信息模块（多条目） | 功能新增 | [order.entity.ts](source/backend/src/common/database/entities/order.entity.ts), [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| O8 | 列表状态下拉选择 | UI 重构 | [Orders.vue](source/frontend/src/views/Orders.vue) — StatusBar → t-select |
+| O9 | 列表新增 5 列 | UI 变更 | [Orders.vue](source/frontend/src/views/Orders.vue) |
+| O10 | "查看"→"编辑"按钮 | UI 变更 | [Orders.vue](source/frontend/src/views/Orders.vue) |
+| O11 | 列顺序重排 | UI 变更 | [Orders.vue](source/frontend/src/views/Orders.vue) |
+
+**影响文件总计：** 后端 7 文件 (3 entity + 3 dto + 1 service) + 前端 7 文件 (5 views + 2 api) = **14 个源代码文件 + 2 个文档文件**
 
 ---
 
@@ -361,7 +389,7 @@ source/
 
 | 问题 | 说明 | 状态 |
 |------|------|:----:|
-| `env.d.ts` 缺失 | `source/frontend/src/` 缺少 `.d.ts` 文件声明 `.vue` 模块，`vue-tsc` 构建会报错。需创建 `src/env.d.ts` | ⏳ 待解决 |
+| `env.d.ts` 缺失 | `source/frontend/src/` 缺少 `.d.ts` 文件声明 `.vue` 模块。Vite 内置类型处理，`vue-tsc --noEmit` 通过无需额外声明 | ✅ 不阻塞 |
 | ECharts 完整导入 | `import * as echarts from 'echarts'` 导入完整包体积过大。生产环境建议按需导入 | ⏳ 待解决 |
 | `tdesign-icons-vue-next` | 图标库为传递依赖未声明在 `package.json`，可能被意外剪枝 | ⏳ 待解决 |
 | PDF 中文字体 | 字体文件已从 Invalid HTML 替换为 Windows 系统字体 SimFang/SimHei（TrueType），部署时需确认字体文件随构建包分发 | ✅ 已解决 |

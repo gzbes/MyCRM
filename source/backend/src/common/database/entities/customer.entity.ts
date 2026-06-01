@@ -18,6 +18,15 @@ export class Customer {
   @Column({ type: 'varchar', length: 20, nullable: true, default: null, comment: '联系电话' })
   phone: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true, default: null, comment: '客户编码(可自定义编辑)' })
+  customerCode: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true, default: null, comment: '默认付款方式' })
+  paymentMethod: string;
+
+  @Column({ type: 'json', nullable: true, default: null, comment: '送货地址列表 [{address, contact, phone, isDefault}]' })
+  deliveryAddresses: { address: string; contact: string; phone: string; isDefault: boolean }[];
+
   @Column({ type: 'text', nullable: true, default: null, comment: '地址' })
   address: string;
 

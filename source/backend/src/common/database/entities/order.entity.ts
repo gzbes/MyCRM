@@ -18,6 +18,21 @@ export class Order {
   @Column({ name: 'order_date', type: 'date', comment: '下单日期' })
   orderDate: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true, default: null, comment: '客户单号' })
+  customerOrderNo: string;
+
+  @Column({ name: 'delivery_date', type: 'date', nullable: true, default: null, comment: '订单交期' })
+  deliveryDate: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, default: null, comment: '送货地址(当前订单选用的地址快照)' })
+  deliveryAddress: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true, default: null, comment: '订单付款方式(区别于最近收款方式)' })
+  orderPaymentMethod: string;
+
+  @Column({ type: 'json', nullable: true, default: null, comment: '发货信息 [{actualDeliveryDate, deliveryAddress, freight}]' })
+  deliveries: { actualDeliveryDate: string; deliveryAddress: string; freight: number }[];
+
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0.00, comment: '订单总金额' })
   totalAmount: number;
 

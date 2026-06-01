@@ -249,9 +249,9 @@ source/
 ## 八、当前状态
 
 <!-- 开发过程中请更新此处 -->
-- **当前阶段：** UAT 修复（全部完成）
+- **当前阶段：** UAT 3.2 功能增强（完成）
 - **当前任务：** Phase 4 — 部署与运维（待启动）
-- **完成进度：** 23 / 28 天
+- **完成进度：** 25 / 28 天
 - **最后更新：** 2026-06-01
 
 ### Phase 2 完成总结
@@ -370,6 +370,18 @@ source/
 | O11 | 列顺序重排 | UI 变更 | [Orders.vue](source/frontend/src/views/Orders.vue) |
 
 **影响文件总计：** 后端 7 文件 (3 entity + 3 dto + 1 service) + 前端 7 文件 (5 views + 2 api) = **14 个源代码文件 + 2 个文档文件**
+
+### UAT 3.2：功能增强（7 项）
+
+| 编号 | 需求 | 类型 | 涉及文件 | 说明 |
+|:----:|------|:----:|---------|------|
+| E1 | 客户管理—送货地址管理 | 功能新增 | [Customers.vue](source/frontend/src/views/Customers.vue) | 编辑对话框内增删改查+设为默认地址；单地址自动默认；多地址可选择默认 |
+| E2 | UAT3 "付款方式"→"结算方式" | UI 变更 | [Customers.vue](source/frontend/src/views/Customers.vue), [OrderForm.vue](source/frontend/src/views/OrderForm.vue), [Orders.vue](source/frontend/src/views/Orders.vue), [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) | 客户/订单中新增的 paymentMethod 改为文本输入"结算方式"；原收款记录（银行转账/微信/支付宝/现金）保持"收款方式"不变 |
+| E3 | 订单详情行内编辑 | 功能新增 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) | 订单信息卡片新增编辑按钮，6 字段可切换编辑：客户单号/下单日期/订单交期/送货地址/结算方式/备注 |
+| E4 | 送货地址从客户地址带出 | 功能增强 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) | 订单详情编辑时的送货地址、发货对话框的地址均从客户 deliveryAddresses 下拉选择，支持手动输入新地址 |
+| E5 | 发货产品级数量 | 功能新增 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue), [order.ts](source/frontend/src/api/order.ts) | 发货对话框展示订单所有产品行的订单数量+可编辑送货数量；保存 `items[]` 明细；列表展示 `产品×数量` 摘要 |
+| E6 | 列表收款弹出对话框 | 功能增强 | [Orders.vue](source/frontend/src/views/Orders.vue) | 列表页选择"部分收款"/"已结清"时弹出金额/方式/日期对话框，与详情页一致 |
+| E7 | 移除所有 +/- 按钮 | UI 优化 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue), [Orders.vue](source/frontend/src/views/Orders.vue) | 全部 `t-input-number` 设 `theme="normal"`（配送数量/运费/收款金额）；Products.vue 已有 `hide-button` |
 
 ---
 

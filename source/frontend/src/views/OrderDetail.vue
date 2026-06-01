@@ -13,15 +13,53 @@
 
     <t-loading :loading="loading" size="large" show-overlay>
       <template v-if="order">
-        <!-- 第一部分：订单头信息（含订单状态操作） -->
+        <!-- 第一部分：订单头信息（含订单状态操作 + 行内编辑） -->
         <t-card title="订单信息" class="section-card">
+          <template #actions>
+            <t-space>
+              <t-button v-if="!editingOrderInfo" size="small" variant="outline" @click="startEditOrderInfo">
+                <template #icon><t-icon name="edit-1" /></template>编辑
+              </t-button>
+              <template v-else>
+                <t-button size="small" theme="primary" @click="handleSaveOrderInfo">保存</t-button>
+                <t-button size="small" variant="outline" @click="cancelEditOrderInfo">取消</t-button>
+              </template>
+            </t-space>
+          </template>
           <t-descriptions bordered layout="vertical" :column="3">
             <t-descriptions-item label="客户名称">{{ order.customer?.name || '-' }}</t-descriptions-item>
-            <t-descriptions-item label="客户单号">{{ order.customerOrderNo || '-' }}</t-descriptions-item>
-            <t-descriptions-item label="下单日期">{{ order.orderDate || '-' }}</t-descriptions-item>
-            <t-descriptions-item label="订单交期">{{ order.deliveryDate || '-' }}</t-descriptions-item>
-            <t-descriptions-item label="送货地址">{{ order.deliveryAddress || '-' }}</t-descriptions-item>
-            <t-descriptions-item label="付款方式">{{ order.orderPaymentMethod || '-' }}</t-descriptions-item>
+            <t-descriptions-item label="客户单号">
+              <template v-if="editingOrderInfo">
+                <t-input v-model="editOrderForm.customerOrderNo" placeholder="输入客户单号" />
+              </template>
+              <template v-else>{{ order.customerOrderNo || '-' }}</template>
+            </t-descriptions-item>
+            <t-descriptions-item label="下单日期">
+              <template v-if="editingOrderInfo">
+                <t-date-picker v-model="editOrderForm.orderDate" placeholder="选择下单日期" style="width: 100%" />
+              </template>
+              <template v-else>{{ order.orderDate || '-' }}</template>
+            </t-descriptions-item>
+            <t-descriptions-item label="订单交期">
+              <template v-if="editingOrderInfo">
+                <t-date-picker v-model="editOrderForm.deliveryDate" placeholder="选择订单交期" style="width: 100%" />
+              </template>
+              <template v-else>{{ order.deliveryDate || '-' }}</template>
+            </t-descriptions-item>
+            <t-descriptions-item label="送货地址">
+              <template v-if="editingOrderInfo">
+                <t-select v-model="editOrderForm.deliveryAddress" placeholder="选择或输入送货地址" allow-create filterable clearable style="width: 100%">
+                  <t-option v-for="addr in customerAddresses" :key="addr.address" :value="addr.address" :label="`${addr.address}${addr.isDefault ? ' (默认)' : ''}`" />
+                </t-select>
+              </template>
+              <template v-else>{{ order.deliveryAddress || '-' }}</template>
+            </t-descriptions-item>
+            <t-descriptions-item label="结算方式">
+              <template v-if="editingOrderInfo">
+                <t-input v-model="editOrderForm.orderPaymentMethod" placeholder="输入结算方式" />
+              </template>
+              <template v-else>{{ order.orderPaymentMethod || '-' }}</template>
+            </t-descriptions-item>
             <t-descriptions-item label="订单状态" :span="3">
               <div class="status-with-actions">
                 <StatusBar :all-statuses="allOrderStatuses" :current-status="order.orderStatus" :status-theme-map="orderStatusThemeMap" />
@@ -43,7 +81,12 @@
             <t-descriptions-item label="收款状态" :span="3">
               <StatusBar :all-statuses="allPaymentStatuses" :current-status="order.paymentStatus" :status-theme-map="paymentStatusThemeMap" />
             </t-descriptions-item>
-            <t-descriptions-item label="备注" :span="3">{{ order.remark || '-' }}</t-descriptions-item>
+            <t-descriptions-item label="备注" :span="3">
+              <template v-if="editingOrderInfo">
+                <t-textarea v-model="editOrderForm.remark" placeholder="输入备注" />
+              </template>
+              <template v-else>{{ order.remark || '-' }}</template>
+            </t-descriptions-item>
           </t-descriptions>
         </t-card>
 
@@ -274,7 +317,7 @@
       :confirmBtn="'确认'"
       :cancelBtn="'取消'"
       @confirm="handleDeliveryConfirm"
-      width="500px"
+      width="700px"
     >
       <t-form :data="deliveryForm" label-width="100px">
         <t-form-item label="实际交期" name="actualDeliveryDate">
@@ -285,16 +328,57 @@
           />
         </t-form-item>
         <t-form-item label="送货地址" name="deliveryAddress">
-          <t-input
-            v-model="deliveryForm.deliveryAddress"
-            placeholder="请输入送货地址"
-          />
+          <template v-if="customerDeliveryAddresses.length > 0">
+            <t-select
+              v-model="deliveryForm.deliveryAddress"
+              placeholder="从客户地址中选择或输入"
+              allow-create
+              filterable
+              clearable
+              style="width: 100%"
+            >
+              <t-option
+                v-for="addr in customerDeliveryAddresses"
+                :key="addr.address"
+                :value="addr.address"
+                :label="`${addr.address}${addr.isDefault ? ' (默认)' : ''}${addr.contact ? ' [' + addr.contact + ']' : ''}`"
+              />
+            </t-select>
+          </template>
+          <template v-else>
+            <t-input
+              v-model="deliveryForm.deliveryAddress"
+              placeholder="请输入送货地址（客户暂无默认地址）"
+            />
+          </template>
+        </t-form-item>
+        <t-form-item label="发货明细" name="deliveryItems">
+          <div style="width: 100%">
+            <t-table
+              :data="deliveryFormItems"
+              :columns="deliveryItemColumns"
+              size="small"
+              stripe
+              max-height="300"
+            >
+              <template #deliveryQuantity="{ rowIndex }">
+                <t-input-number
+                  v-model="deliveryFormItems[rowIndex].deliveryQuantity"
+                  :min="0"
+                  :decimal-places="0"
+                  theme="normal"
+                  style="width: 120px"
+                />
+              </template>
+            </t-table>
+          </div>
         </t-form-item>
         <t-form-item label="运费" name="freight">
           <t-input-number
             v-model="deliveryForm.freight"
             :min="0"
             :decimal-places="2"
+            theme="normal"
             placeholder="请输入运费"
             style="width: 100%"
           />
@@ -332,7 +416,8 @@
             <t-input-number
               v-model="statusForm.receivedAmount"
               :min="0"
-              :decimalPlaces="2"
+              :decimal-places="2"
+              theme="normal"
               placeholder="请输入已收金额"
               style="width: 100%"
             />
@@ -390,7 +475,8 @@
 import StatusBar from '@/components/StatusBar.vue'
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { orderApi, type Order } from '@/api/order'
+import { orderApi, type Order, type DeliveryItem } from '@/api/order'
+import { customerApi } from '@/api/customer'
 import { MessagePlugin } from 'tdesign-vue-next'
 
 const route = useRoute()
@@ -403,6 +489,21 @@ const order = ref<Order | null>(null)
 // 发票号编辑状态
 const editingInvoiceNo = ref(false)
 const invoiceNoInput = ref('')
+
+// 订单信息行内编辑状态
+const editingOrderInfo = ref(false)
+const editOrderForm = ref({ customerOrderNo: '', orderDate: '', deliveryDate: '', deliveryAddress: '', orderPaymentMethod: '', remark: '' })
+const customerAddresses = ref<{ address: string; contact?: string; phone?: string; isDefault?: boolean }[]>([])
+
+// 发货明细产品级数量
+const deliveryFormItems = ref<DeliveryItem[]>([])
+const deliveryItemColumns = [
+  { colKey: 'productName', title: '产品名称', width: 180 },
+  { colKey: 'productSpec', title: '规格型号', width: 100 },
+  { colKey: 'orderQuantity', title: '订单数量', width: 100 },
+  { colKey: 'deliveryQuantity', title: '送货数量', width: 140 },
+]
+const customerDeliveryAddresses = ref<{ address: string; contact?: string; phone?: string; isDefault?: boolean }[]>([])
 
 // 状态变更对话框
 const statusDialogVisible = ref(false)
@@ -445,6 +546,12 @@ const deliveryColumns = [
   { colKey: 'index', title: '#', width: 40, cell: (_h: any, { rowIndex }: any) => rowIndex + 1 },
   { colKey: 'actualDeliveryDate', title: '实际交期' },
   { colKey: 'deliveryAddress', title: '送货地址' },
+  { colKey: 'deliveryQuantity', title: '送货数量', cell: (_h: any, { row }: any) => {
+    if (row.items && row.items.length > 0) {
+      return row.items.map((i: any) => `${i.productName}×${i.deliveryQuantity}`).join('; ')
+    }
+    return row.deliveryQuantity != null ? String(row.deliveryQuantity) : '-'
+  }},
   { colKey: 'freight', title: '运费', cell: (_h: any, { row }: any) => `¥${Number(row.freight).toFixed(2)}` },
   { colKey: 'action', title: '操作', width: 120 },
 ]
@@ -452,19 +559,61 @@ const deliveryColumns = [
 // 发货信息对话框
 const deliveryDialogVisible = ref(false)
 const editingDeliveryIndex = ref(-1)
-const deliveryForm = ref({ actualDeliveryDate: '', deliveryAddress: '', freight: 0 })
+const deliveryForm = ref({ actualDeliveryDate: '', deliveryAddress: '', deliveryQuantity: 0, freight: 0 })
 
 function addDelivery() {
   editingDeliveryIndex.value = -1
-  deliveryForm.value = { actualDeliveryDate: '', deliveryAddress: '', freight: 0 }
+  deliveryForm.value = { actualDeliveryDate: '', deliveryAddress: '', deliveryQuantity: 0, freight: 0 }
+  // 初始化产品级发货数量
+  if (order.value?.items) {
+    deliveryFormItems.value = order.value.items.map(item => ({
+      productName: item.productName,
+      productSpec: item.productSpec,
+      orderQuantity: item.quantity,
+      deliveryQuantity: 0,
+    }))
+  } else {
+    deliveryFormItems.value = []
+  }
+  // 加载客户送货地址
+  loadCustomerDeliveryAddresses()
   deliveryDialogVisible.value = true
+}
+
+async function loadCustomerDeliveryAddresses() {
+  if (!order.value?.customerId) return
+  try {
+    const customer = await customerApi.getOne(order.value.customerId)
+    customerDeliveryAddresses.value = customer.deliveryAddresses || []
+    // 默认选中默认地址
+    const defaultAddr = customerDeliveryAddresses.value.find(a => a.isDefault)
+    if (defaultAddr && !deliveryForm.value.deliveryAddress) {
+      deliveryForm.value.deliveryAddress = defaultAddr.address
+    }
+  } catch (e) {
+    console.error('[OrderDetail] failed to load customer addresses:', e)
+    customerDeliveryAddresses.value = []
+  }
 }
 
 function editDelivery(index: number) {
   const d = (order.value?.deliveries || [])[index]
   if (!d) return
   editingDeliveryIndex.value = index
-  deliveryForm.value = { ...d }
+  deliveryForm.value = { ...d, deliveryQuantity: d.deliveryQuantity ?? 0 }
+  // 恢复产品级发货数量
+  if (d.items && d.items.length > 0) {
+    deliveryFormItems.value = d.items.map(item => ({ ...item }))
+  } else if (order.value?.items) {
+    // 兼容旧数据：只有总数量，按比例均分到各产品
+    deliveryFormItems.value = order.value.items.map(item => ({
+      productName: item.productName,
+      productSpec: item.productSpec,
+      orderQuantity: item.quantity,
+      deliveryQuantity: d.deliveryQuantity ? Math.round(d.deliveryQuantity / order.value!.items.length) : 0,
+    }))
+  }
+  loadCustomerDeliveryAddresses()
   deliveryDialogVisible.value = true
 }
 
@@ -484,11 +633,19 @@ async function removeDelivery(index: number) {
 
 async function handleDeliveryConfirm() {
   if (!order.value) return
+  // 计算总送货数量并保存产品级明细
+  const items = deliveryFormItems.value.map(item => ({ ...item }))
+  const totalQty = items.reduce((sum, item) => sum + (item.deliveryQuantity || 0), 0)
+  const deliveryRecord = {
+    ...deliveryForm.value,
+    deliveryQuantity: totalQty,
+    items,
+  }
   const deliveries = [...(order.value.deliveries || [])]
   if (editingDeliveryIndex.value >= 0) {
-    deliveries[editingDeliveryIndex.value] = { ...deliveryForm.value }
+    deliveries[editingDeliveryIndex.value] = deliveryRecord
   } else {
-    deliveries.push({ ...deliveryForm.value })
+    deliveries.push(deliveryRecord)
   }
   try {
     const updated = await orderApi.update(order.value.id, { deliveries })
@@ -714,6 +871,46 @@ async function handleInvoiceRequirementChange(value: string) {
     const msg = err?.response?.data?.message || err?.message || '更新开票要求失败'
     await MessagePlugin.error(msg)
   }
+}
+
+// ── 订单信息行内编辑 ──
+async function startEditOrderInfo() {
+  if (!order.value) return
+  editOrderForm.value = {
+    customerOrderNo: order.value.customerOrderNo || '',
+    orderDate: order.value.orderDate || '',
+    deliveryDate: order.value.deliveryDate || '',
+    deliveryAddress: order.value.deliveryAddress || '',
+    orderPaymentMethod: order.value.orderPaymentMethod || '',
+    remark: order.value.remark || '',
+  }
+  // 加载客户送货地址用于选择
+  if (order.value.customerId) {
+    try {
+      const customer = await customerApi.getOne(order.value.customerId)
+      customerAddresses.value = customer.deliveryAddresses || []
+    } catch (e) {
+      customerAddresses.value = []
+    }
+  }
+  editingOrderInfo.value = true
+}
+
+async function handleSaveOrderInfo() {
+  if (!order.value) return
+  try {
+    const updated = await orderApi.update(order.value.id, editOrderForm.value)
+    order.value = updated
+    editingOrderInfo.value = false
+    await MessagePlugin.success('订单信息已更新')
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || '更新失败'
+    await MessagePlugin.error(msg)
+  }
+}
+
+function cancelEditOrderInfo() {
+  editingOrderInfo.value = false
 }
 
 // 处理状态变更确认

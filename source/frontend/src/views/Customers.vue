@@ -73,13 +73,8 @@
         <t-form-item label="电话" name="phone">
           <t-input v-model="formData.phone" placeholder="请输入联系电话" />
         </t-form-item>
-        <t-form-item label="付款方式" name="paymentMethod">
-          <t-select v-model="formData.paymentMethod" placeholder="请选择默认付款方式" clearable>
-            <t-option value="银行转账" label="银行转账" />
-            <t-option value="微信" label="微信" />
-            <t-option value="支付宝" label="支付宝" />
-            <t-option value="现金" label="现金" />
-          </t-select>
+        <t-form-item label="结算方式" name="paymentMethod">
+          <t-input v-model="formData.paymentMethod" placeholder="请输入结算方式（如月结、款到发货等）" />
         </t-form-item>
         <t-form-item label="地址" name="address">
           <t-input v-model="formData.address" placeholder="请输入地址" />
@@ -88,6 +83,33 @@
           <t-textarea v-model="formData.remark" placeholder="请输入备注" :rows="3" />
         </t-form-item>
       </t-form>
+      <!-- 送货地址管理 -->
+      <div class="address-section" style="margin-top: 16px">
+        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: var(--td-text-color-primary, #333);">送货地址管理</h4>
+        <t-table
+          :data="formData.deliveryAddresses"
+          :columns="editAddressColumns"
+          row-key="index"
+          max-height="200"
+          size="small"
+          stripe
+        >
+          <template #isDefault="{ row }">
+            <t-tag v-if="row.isDefault" theme="primary" size="small">默认</t-tag>
+            <t-link v-else theme="primary" size="small" @click="setDefaultAddress(row)">设为默认</t-link>
+          </template>
+          <template #action="{ rowIndex }">
+            <t-space>
+              <t-link theme="primary" size="small" @click="editAddress(rowIndex)">编辑</t-link>
+              <t-link theme="danger" size="small" @click="removeAddress(rowIndex)">删除</t-link>
+            </t-space>
+          </template>
+        </t-table>
+        <t-button variant="outline" size="small" style="margin-top: 8px" @click="addAddress">
+          <template #icon><t-icon name="add" /></template>
+          添加送货地址
+        </t-button>
+      </div>
     </t-dialog>
 
     <!-- 查看详情对话框 -->
@@ -103,7 +125,7 @@
           <t-descriptions-item label="名称">{{ viewingCustomer.name }}</t-descriptions-item>
           <t-descriptions-item label="联系人">{{ viewingCustomer.contact || '-' }}</t-descriptions-item>
           <t-descriptions-item label="电话">{{ viewingCustomer.phone || '-' }}</t-descriptions-item>
-          <t-descriptions-item label="付款方式">{{ viewingCustomer.paymentMethod || '-' }}</t-descriptions-item>
+          <t-descriptions-item label="结算方式">{{ viewingCustomer.paymentMethod || '-' }}</t-descriptions-item>
           <t-descriptions-item label="地址" :span="2">{{ viewingCustomer.address || '-' }}</t-descriptions-item>
           <t-descriptions-item label="备注" :span="2"><span style="white-space: pre-line;">{{ viewingCustomer.remark || '-' }}</span></t-descriptions-item>
           <t-descriptions-item label="订单数">{{ viewingCustomer.orderCount ?? 0 }}</t-descriptions-item>
@@ -128,12 +150,34 @@
         </div>
       </div>
     </t-dialog>
+
+    <!-- 地址编辑子对话框 -->
+    <t-dialog
+      v-model:visible="addressDialogVisible"
+      :header="editingAddressIndex >= 0 ? '编辑送货地址' : '添加送货地址'"
+      width="500px"
+      :confirmBtn="'确认'"
+      :cancelBtn="'取消'"
+      @confirm="handleAddressConfirm"
+    >
+      <t-form :data="addressForm" label-width="100px">
+        <t-form-item label="地址" name="address">
+          <t-input v-model="addressForm.address" placeholder="请输入送货地址" />
+        </t-form-item>
+        <t-form-item label="联系人" name="contact">
+          <t-input v-model="addressForm.contact" placeholder="请输入联系人" />
+        </t-form-item>
+        <t-form-item label="电话" name="phone">
+          <t-input v-model="addressForm.phone" placeholder="请输入联系电话" />
+        </t-form-item>
+      </t-form>
+    </t-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { customerApi, type Customer } from '@/api/customer'
+import { customerApi, type Customer, type DeliveryAddress } from '@/api/customer'
 import { MessagePlugin } from 'tdesign-vue-next'
 
 const customers = ref<Customer[]>([])
@@ -143,6 +187,18 @@ const showCreateDialog = ref(false)
 const showDetailDialog = ref(false)
 const editingCustomer = ref<Customer | null>(null)
 const viewingCustomer = ref<Customer | null>(null)
+
+// 送货地址编辑状态
+const addressDialogVisible = ref(false)
+const editingAddressIndex = ref(-1)
+const addressForm = ref<DeliveryAddress>({ address: '', contact: '', phone: '', isDefault: false })
+const editAddressColumns = [
+  { colKey: 'address', title: '地址' },
+  { colKey: 'contact', title: '联系人' },
+  { colKey: 'phone', title: '电话' },
+  { colKey: 'isDefault', title: '默认', width: 80 },
+  { colKey: 'action', title: '操作', width: 120 },
+]
 const pagination = ref({
   current: 1,
   pageSize: 10,
@@ -169,6 +225,7 @@ const formData = ref<{
   paymentMethod: string
   address: string
   remark: string
+  deliveryAddresses: DeliveryAddress[]
 }>({
   name: '',
   customerCode: '',
@@ -176,7 +233,8 @@ const formData = ref<{
   phone: '',
   paymentMethod: '',
   address: '',
-  remark: ''
+  remark: '',
+  deliveryAddresses: []
 })
 
 const columns = [
@@ -184,7 +242,7 @@ const columns = [
   { colKey: 'customerCode', title: '客户编码', width: 140 },
   { colKey: 'contact', title: '联系人', width: 120, sorter: true },
   { colKey: 'phone', title: '电话', width: 140, sorter: true },
-  { colKey: 'paymentMethod', title: '付款方式', width: 120 },
+  { colKey: 'paymentMethod', title: '结算方式', width: 120 },
   { colKey: 'address', title: '地址', width: 200, ellipsis: true, sorter: true },
   { colKey: 'action', title: '操作', width: 180, fixed: 'right' }
 ]
@@ -239,7 +297,8 @@ const handleEdit = (customer: Customer) => {
     phone: customer.phone || '',
     paymentMethod: customer.paymentMethod || '',
     address: customer.address || '',
-    remark: customer.remark || ''
+    remark: customer.remark || '',
+    deliveryAddresses: customer.deliveryAddresses ? JSON.parse(JSON.stringify(customer.deliveryAddresses)) : []
   }
   showCreateDialog.value = true
 }
@@ -258,6 +317,12 @@ const handleSubmit = async () => {
   if (!formData.value.name) {
     MessagePlugin.warning('请填写客户名称')
     return
+  }
+
+  // 自动处理默认地址：只有一条时默认为默认地址
+  const addrs = formData.value.deliveryAddresses
+  if (addrs && addrs.length === 1) {
+    addrs[0].isDefault = true
   }
 
   try {
@@ -284,8 +349,54 @@ const handleCloseDialog = () => {
     phone: '',
     paymentMethod: '',
     address: '',
-    remark: ''
+    remark: '',
+    deliveryAddresses: []
   }
+}
+
+// ── 送货地址管理函数 ──
+function addAddress() {
+  editingAddressIndex.value = -1
+  addressForm.value = { address: '', contact: '', phone: '', isDefault: false }
+  addressDialogVisible.value = true
+}
+
+function editAddress(index: number) {
+  const addr = formData.value.deliveryAddresses[index]
+  if (!addr) return
+  editingAddressIndex.value = index
+  addressForm.value = { ...addr }
+  addressDialogVisible.value = true
+}
+
+function removeAddress(index: number) {
+  const addrs = formData.value.deliveryAddresses
+  addrs.splice(index, 1)
+  // 如果删除的是默认地址，自动将第一条设为默认
+  if (addrs.length === 1) {
+    addrs[0].isDefault = true
+  }
+}
+
+function setDefaultAddress(row: DeliveryAddress) {
+  formData.value.deliveryAddresses.forEach(a => { a.isDefault = false })
+  row.isDefault = true
+}
+
+function handleAddressConfirm() {
+  if (!addressForm.value.address) {
+    MessagePlugin.warning('请输入地址')
+    return
+  }
+  const addrs = formData.value.deliveryAddresses
+  if (editingAddressIndex.value >= 0) {
+    addrs[editingAddressIndex.value] = { ...addressForm.value, isDefault: addrs[editingAddressIndex.value].isDefault }
+  } else {
+    // 新增：如果是第一条，自动设为默认
+    const isDefault = addrs.length === 0
+    addrs.push({ ...addressForm.value, isDefault })
+  }
+  addressDialogVisible.value = false
 }
 
 const formatDate = (dateString: string) => {

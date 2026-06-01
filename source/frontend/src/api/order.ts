@@ -38,10 +38,19 @@ export interface StatusLogData {
   createdAt: string
 }
 
+export interface DeliveryItem {
+  productName: string
+  productSpec?: string
+  orderQuantity: number
+  deliveryQuantity: number
+}
+
 export interface DeliveryInfo {
   actualDeliveryDate: string
   deliveryAddress: string
   freight: number
+  deliveryQuantity?: number
+  items?: DeliveryItem[]
 }
 
 export interface Order {

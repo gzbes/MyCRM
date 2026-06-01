@@ -55,18 +55,12 @@
           />
         </t-form-item>
 
-        <t-form-item label="付款方式" name="orderPaymentMethod">
-          <t-select
+        <t-form-item label="结算方式" name="orderPaymentMethod">
+          <t-input
             v-model="formData.orderPaymentMethod"
             placeholder="选择客户后自动带出（可修改）"
-            clearable
             style="width: 240px"
-          >
-            <t-option value="银行转账" label="银行转账" />
-            <t-option value="微信" label="微信" />
-            <t-option value="支付宝" label="支付宝" />
-            <t-option value="现金" label="现金" />
-          </t-select>
+          />
         </t-form-item>
 
         <t-form-item label="开票要求" name="invoiceRequirement">

@@ -108,6 +108,67 @@
         </t-space>
       </template>
     </t-table>
+
+    <!-- 收款对话框 -->
+    <t-dialog
+      v-model:visible="paymentDialogVisible"
+      :header="paymentDialogNewStatus === '已结清' ? '收款结清' : '部分收款'"
+      :confirmBtn="'确认'"
+      :cancelBtn="'取消'"
+      @confirm="handlePaymentConfirm"
+      width="500px"
+    >
+      <div v-if="paymentTargetOrder" class="payment-summary-dialog">
+        <t-descriptions :column="3" style="margin-bottom: 16px">
+          <t-descriptions-item label="订单总额">
+            <strong style="color: #e34d59">¥{{ Number(paymentTargetOrder.totalAmount).toFixed(2) }}</strong>
+          </t-descriptions-item>
+          <t-descriptions-item label="已收金额">
+            <strong style="color: #00a870">¥{{ Number(paymentTargetOrder.receivedAmount || 0).toFixed(2) }}</strong>
+          </t-descriptions-item>
+          <t-descriptions-item label="未收金额">
+            <strong :style="{ color: (Number(paymentTargetOrder.totalAmount) - Number(paymentTargetOrder.receivedAmount || 0)) > 0 ? '#e34d59' : '#00a870' }">
+              ¥{{ (Number(paymentTargetOrder.totalAmount) - Number(paymentTargetOrder.receivedAmount || 0)).toFixed(2) }}
+            </strong>
+          </t-descriptions-item>
+        </t-descriptions>
+      </div>
+      <t-form :data="paymentForm" label-width="100px">
+        <t-form-item label="本次收款金额" name="receivedAmount">
+          <t-input-number
+            v-model="paymentForm.receivedAmount"
+            :min="0"
+            :decimal-places="2"
+            theme="normal"
+            placeholder="请输入收款金额"
+            style="width: 100%"
+          />
+        </t-form-item>
+        <t-form-item label="收款方式" name="paymentMethod">
+          <t-select
+            v-model="paymentForm.paymentMethod"
+            placeholder="请选择收款方式"
+            :options="[
+              { label: '银行转账', value: '银行转账' },
+              { label: '微信', value: '微信' },
+              { label: '支付宝', value: '支付宝' },
+              { label: '现金', value: '现金' },
+            ]"
+            style="width: 100%"
+          />
+        </t-form-item>
+        <t-form-item label="收款日期" name="paymentDate">
+          <t-date-picker
+            v-model="paymentForm.paymentDate"
+            placeholder="请选择收款日期"
+            style="width: 100%"
+          />
+        </t-form-item>
+      </t-form>
+      <div v-if="paymentDialogNewStatus === '已结清'" class="dialog-warning">
+        <t-alert theme="info" message="已收金额必须大于等于订单总金额" />
+      </div>
+    </t-dialog>
   </div>
 </template>
 
@@ -129,13 +190,19 @@ const pagination = reactive({
   total: 0,
 })
 
+// 收款对话框状态
+const paymentDialogVisible = ref(false)
+const paymentTargetOrder = ref<Order | null>(null)
+const paymentDialogNewStatus = ref('')
+const paymentForm = ref({ receivedAmount: 0, paymentMethod: '', paymentDate: '' })
+
 const columns = [
   { colKey: 'action', title: '操作', width: 120, fixed: 'left' },
   { colKey: 'customer', title: '客户', width: 140, sorter: true },
   { colKey: 'customerOrderNo', title: '客户单号', width: 130 },
   { colKey: 'orderDate', title: '下单日期', width: 110, sorter: true },
   { colKey: 'deliveryDate', title: '订单交期', width: 110 },
-  { colKey: 'orderPaymentMethod', title: '付款方式', width: 100 },
+  { colKey: 'orderPaymentMethod', title: '结算方式', width: 100 },
   { colKey: 'totalAmount', title: '总金额', width: 120, sorter: true },
   { colKey: 'orderStatus', title: '订单状态', width: 140, sorter: true },
   { colKey: 'invoiceStatus', title: '开票状态', width: 140, sorter: true },
@@ -182,6 +249,15 @@ async function handleStatusChange(row: Order, statusType: string, newStatus: str
   if (newStatus === row.invoiceStatus && statusType === 'invoice') return
   if (newStatus === row.paymentStatus && statusType === 'payment') return
 
+  // 收款状态变更需弹出对话框录入金额/方式/日期
+  if (statusType === 'payment' && (newStatus === '部分收款' || newStatus === '已结清')) {
+    paymentTargetOrder.value = row
+    paymentDialogNewStatus.value = newStatus
+    paymentForm.value = { receivedAmount: 0, paymentMethod: '', paymentDate: '' }
+    paymentDialogVisible.value = true
+    return
+  }
+
   try {
     const payload: any = { statusType, newStatus }
     await orderApi.changeStatus(row.id, payload)
@@ -189,6 +265,26 @@ async function handleStatusChange(row: Order, statusType: string, newStatus: str
     await loadOrders()
   } catch (err: any) {
     MessagePlugin.error(err?.response?.data?.message || '状态更新失败')
+  }
+}
+
+async function handlePaymentConfirm() {
+  if (!paymentTargetOrder.value) return
+  const order = paymentTargetOrder.value
+  const payload: any = {
+    statusType: 'payment',
+    newStatus: paymentDialogNewStatus.value,
+    receivedAmount: paymentForm.value.receivedAmount,
+    paymentMethod: paymentForm.value.paymentMethod,
+    paymentDate: paymentForm.value.paymentDate,
+  }
+  try {
+    await orderApi.changeStatus(order.id, payload)
+    MessagePlugin.success('收款成功')
+    paymentDialogVisible.value = false
+    await loadOrders()
+  } catch (err: any) {
+    MessagePlugin.error(err?.response?.data?.message || '收款失败')
   }
 }
 
@@ -219,4 +315,5 @@ onMounted(() => loadOrders())
 <style scoped>
 .orders-page { background: #fff; padding: 24px; border-radius: 4px; }
 .page-header { margin-bottom: 24px; }
+.dialog-warning { margin-top: 16px; }
 </style>

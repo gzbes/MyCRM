@@ -133,4 +133,11 @@ export const orderApi = {
   getFileUrl(orderId: number, filename: string): string {
     return `/api/uploads/orders/${orderId}/${filename}`
   },
+
+  async getFileBlob(orderId: number, filename: string): Promise<Blob> {
+    const response = await api.get(`/uploads/orders/${orderId}/${filename}`, {
+      responseType: 'blob',
+    })
+    return response as unknown as Blob
+  },
 }

@@ -105,14 +105,25 @@
                 </t-space>
               </div>
             </t-descriptions-item>
-            <t-descriptions-item label="发票号">{{ order.invoiceNo || '-' }}</t-descriptions-item>
-            <t-descriptions-item label="发票附件" :span="3">
-              <template v-if="order.invoiceFile">
-                <t-link :href="getInvoiceFileUrl()" target="_blank" :theme="'primary'">
-                  <t-icon name="file-pdf" /> 查看发票文件
-                </t-link>
+            <t-descriptions-item label="发票号">
+              <template v-if="editingInvoiceNo">
+                <t-input
+                  v-model="invoiceNoInput"
+                  placeholder="输入发票号"
+                  style="width: 240px"
+                  @keyup.enter="handleSaveInvoiceNo"
+                />
+                <t-space :size="4" style="margin-left: 8px; display: inline-flex">
+                  <t-button size="small" theme="primary" variant="base" @click="handleSaveInvoiceNo">保存</t-button>
+                  <t-button size="small" theme="default" variant="outline" @click="editingInvoiceNo = false">取消</t-button>
+                </t-space>
               </template>
-              <span v-else>-</span>
+              <template v-else>
+                <span>{{ order.invoiceNo || '-' }}</span>
+                <t-button size="small" variant="text" @click="startEditInvoiceNo">
+                  <template #icon><t-icon name="edit-1" /></template>
+                </t-button>
+              </template>
             </t-descriptions-item>
           </t-descriptions>
         </t-card>
@@ -184,15 +195,16 @@
             stripe
             hover
           >
-            <template #attachment-fileSize="{ row }">
+            <template #fileSize="{ row }">
               {{ formatFileSize(row.fileSize) }}
             </template>
-            <template #attachment-createdAt="{ row }">
+            <template #createdAt="{ row }">
               {{ formatTime(row.createdAt) }}
             </template>
-            <template #attachment-action="{ row }">
+            <template #action="{ row }">
               <t-space>
-                <t-link :href="getDownloadUrl(row.filePath)" target="_blank" theme="primary">下载</t-link>
+                <t-link theme="primary" @click="handlePreview(row.filePath)">预览</t-link>
+                <t-link theme="primary" @click="handleDownload(row.filePath, row.fileName)">下载</t-link>
                 <t-link theme="danger" @click="handleDeleteAttachment(row.id)">删除</t-link>
               </t-space>
             </template>
@@ -324,6 +336,10 @@ const router = useRouter()
 const loading = ref(false)
 const order = ref<Order | null>(null)
 
+// 发票号编辑状态
+const editingInvoiceNo = ref(false)
+const invoiceNoInput = ref('')
+
 // 状态变更对话框
 const statusDialogVisible = ref(false)
 const statusDialogType = ref<'order' | 'invoice' | 'payment'>('order')
@@ -393,18 +409,38 @@ function getFilePath(filePath: string): string {
   return parts
 }
 
-// 获取附件下载链接
-function getDownloadUrl(filePath: string): string {
-  if (!order.value) return ''
-  const filename = getFilePath(filePath)
-  return orderApi.getFileUrl(order.value.id, filename)
+// 预览附件（通过 axios 获取 blob，在新标签页打开）
+async function handlePreview(filePath: string) {
+  if (!order.value) return
+  try {
+    const filename = getFilePath(filePath)
+    const blob = await orderApi.getFileBlob(order.value.id, filename)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || '预览失败'
+    await MessagePlugin.error(msg)
+  }
 }
 
-// 获取发票附件的下载地址
-function getInvoiceFileUrl(): string {
-  if (!order.value?.invoiceFile) return ''
-  const filename = getFilePath(order.value.invoiceFile)
-  return orderApi.getFileUrl(order.value!.id, filename)
+// 下载附件（通过 axios 发送 JWT 认证，再用 blob URL 触发下载）
+async function handleDownload(filePath: string, displayName?: string) {
+  if (!order.value) return
+  try {
+    const filename = getFilePath(filePath)
+    const blob = await orderApi.getFileBlob(order.value.id, filename)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = displayName || filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || '下载失败'
+    await MessagePlugin.error(msg)
+  }
 }
 
 // 排序后的日志（倒序）
@@ -521,6 +557,26 @@ function handleChangeStatus(type: 'order' | 'invoice' | 'payment', newStatus: st
   statusDialogVisible.value = true
 }
 
+// 编辑发票号
+function startEditInvoiceNo() {
+  invoiceNoInput.value = order.value?.invoiceNo || ''
+  editingInvoiceNo.value = true
+}
+
+// 保存发票号
+async function handleSaveInvoiceNo() {
+  if (!order.value) return
+  try {
+    const updated = await orderApi.update(order.value.id, { invoiceNo: invoiceNoInput.value })
+    order.value = updated
+    editingInvoiceNo.value = false
+    await MessagePlugin.success('发票号已更新')
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || '更新发票号失败'
+    await MessagePlugin.error(msg)
+  }
+}
+
 // 处理开票要求变更（未开票状态下可直接修改）
 async function handleInvoiceRequirementChange(value: string) {
   if (!order.value) return
@@ -565,11 +621,13 @@ async function handleStatusConfirm() {
 }
 
 // 附件上传
-async function handleUploadFile(file: File) {
+async function handleUploadFile(file: any) {
   if (!order.value) return { status: 'fail', error: '订单未加载' }
 
   try {
-    await orderApi.uploadAttachment(order.value.id, file)
+    // TDesign 的 requestMethod 传入的是 UploadFile 包装对象，需提取原始 File
+    const rawFile = file.raw || file
+    await orderApi.uploadAttachment(order.value.id, rawFile)
     return { status: 'success' }
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || '上传失败'

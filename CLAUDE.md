@@ -223,7 +223,7 @@ source/
 │   │   ├── reports/           # [新增] 报表（替换原 statistics）
 │   │   ├── upload/            # [新增] 文件上传
 │   │   └── common/database/   # [新增] TypeORM 配置 + 实体
-│   └── assets/fonts/          # [新增] PDF 中文字体（NotoSansSC）
+│   └── assets/fonts/          # [新增] PDF 中文字体（SimFang/SimHei TrueType）
 ├── frontend/src/
 │   ├── views/
 │   │   ├── Customers.vue      # [改造]
@@ -247,7 +247,7 @@ source/
 ## 八、当前状态
 
 <!-- 开发过程中请更新此处 -->
-- **当前阶段：** Phase 2 UAT 修复（已完成）
+- **当前阶段：** UAT 修复（全部完成）
 - **当前任务：** Phase 4 — 部署与运维（待启动）
 - **完成进度：** 23 / 28 天
 - **最后更新：** 2026-06-01
@@ -276,7 +276,7 @@ source/
 | 部分收款需 0<金额<订单总额 | 后端 400 | ✓ |
 | 已有收款记录不允许设为未收款 | 后端 400 | ✓ |
 | 仅待处理订单可删除 | 后端 400 | ✓ |
-| 仅待处理/生产中订单可修改 | 后端 400 | ✓ |
+| 仅待处理/生产中订单可修改（发票号/开票要求除外） | 后端 400（仅订单主体字段） | ✓ |
 
 ### Phase 2 安全审计
 
@@ -308,7 +308,9 @@ source/
 | 图表不渲染 | `loading=false` 和 DOM 渲染/图表初始化时序问题 | `finally` 释放 loading → `await nextTick()` → `renderChart()` |
 | CSV/PDF 导出报错 | `Content-Disposition` header 含中文导致 HTTP 协议错误 | 改用 `filename*=UTF-8''${encodeURIComponent()}` 格式 |
 
-### Phase 2 UAT 修复总结（UAT 第 2 轮）
+### Phase 2 UAT 修复总结
+
+#### UAT 第 2 轮（12 项：3 BUG + 9 优化）
 
 | 编号 | 问题 | 类型 | 根因 | 涉及文件 |
 |------|------|:----:|------|---------|
@@ -324,6 +326,17 @@ source/
 | 3.8 | 未开票可改要求 | 优化 | 详情页只读展示 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
 | **3.9** | **PNG 上传 400** | **BUG** | **ValidationPipe 干扰 `@UploadedFile()`** | [main.ts](source/backend/src/main.ts) |
 | **4.1** | **PDF 对账单损坏** | **BUG** | **Helvetica 不含中文字形** | [reports.service.ts](source/backend/src/reports/reports.service.ts) + `assets/fonts/` |
+
+#### UAT 第 2 轮补修（6 项）
+
+| 编号 | 问题 | 类 | 根因 | 修复文件 |
+|------|------|:-:|------|---------|
+| R1 | PDF 字体无效 | BUG | NotoSansSC.otf 实际为 GitHub HTML 页面，非真实字体 | [reports.service.ts](source/backend/src/reports/reports.service.ts) + `assets/fonts/simfang.ttf`、`simhei.ttf` |
+| R2 | 附件下载/预览 401 | BUG | 文件 URL 直链接口需 JWT Auth，浏览器新标签不带 token | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) + [order.ts](source/frontend/src/api/order.ts) — 改为 axios blob 下载 |
+| R3 | 操作列按钮不显示 | BUG | `#attachment-action` 模板插槽名不匹配 `colKey: 'action'` | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| R4 | 中文文件名乱码 | BUG | Windows 下 multer 的 `originalname` 使用 latin1 编码 | [upload.controller.ts](source/backend/src/upload/upload.controller.ts) |
+| R5 | 附件无预览按钮 | 优化 | 仅有下载和删除，缺少预览入口 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
+| R6 | 发票号不可随时修改 | 优化 | `UpdateOrderDto` 无 `invoiceNo` 字段，且 `update()` 限制订单状态 | [order.dto.ts](source/backend/src/orders/dto/order.dto.ts)、[orders.service.ts](source/backend/src/orders/orders.service.ts)、[OrderDetail.vue](source/frontend/src/views/OrderDetail.vue) |
 
 **UAT 测试文档：**
 - [UAT2.md](source/UAT/UAT2.md) — 验收问题报告
@@ -350,7 +363,7 @@ source/
 | `env.d.ts` 缺失 | `source/frontend/src/` 缺少 `.d.ts` 文件声明 `.vue` 模块，`vue-tsc` 构建会报错。需创建 `src/env.d.ts` | ⏳ 待解决 |
 | ECharts 完整导入 | `import * as echarts from 'echarts'` 导入完整包体积过大。生产环境建议按需导入 | ⏳ 待解决 |
 | `tdesign-icons-vue-next` | 图标库为传递依赖未声明在 `package.json`，可能被意外剪枝 | ⏳ 待解决 |
-| PDF 中文字体 | UAT 修复中已添加 NotoSansSC 字体到 `assets/fonts/`，需确认部署时包含 | ✅ 已解决 |
+| PDF 中文字体 | 字体文件已从 Invalid HTML 替换为 Windows 系统字体 SimFang/SimHei（TrueType），部署时需确认字体文件随构建包分发 | ✅ 已解决 |
 
 ### 快速启动命令
 

@@ -128,7 +128,11 @@ export class OrdersService {
   async update(id: number, updateOrderDto: UpdateOrderDto): Promise<Order> {
     const order = await this.findOne(id);
 
-    if (!['待处理', '生产中'].includes(order.orderStatus)) {
+    // 发票号/开票要求可随时修改，不受订单状态限制
+    const hasOrderFields = updateOrderDto.items || updateOrderDto.orderDate || updateOrderDto.remark !== undefined;
+    const isOnlyInvoiceUpdate = !hasOrderFields && (updateOrderDto.invoiceNo !== undefined || updateOrderDto.invoiceRequirement !== undefined);
+
+    if (!isOnlyInvoiceUpdate && !['待处理', '生产中'].includes(order.orderStatus)) {
       throw new BadRequestException('当前订单状态不允许修改');
     }
 
@@ -155,6 +159,7 @@ export class OrdersService {
 
     if (updateOrderDto.orderDate) order.orderDate = updateOrderDto.orderDate;
     if (updateOrderDto.remark !== undefined) order.remark = updateOrderDto.remark;
+    if (updateOrderDto.invoiceNo !== undefined) order.invoiceNo = updateOrderDto.invoiceNo;
     if (updateOrderDto.invoiceRequirement) {
       order.invoiceRequirement = updateOrderDto.invoiceRequirement;
       if (updateOrderDto.invoiceRequirement === '无需开票') {

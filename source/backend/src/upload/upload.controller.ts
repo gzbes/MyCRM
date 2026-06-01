@@ -57,9 +57,11 @@ export class UploadController {
     if (!order) throw new BadRequestException('订单不存在');
     if (!file) throw new BadRequestException('请选择文件');
 
+    // Windows 下 multer 的 originalname 使用 latin1 编码，需转 UTF-8
+    const fileName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     const attachment = this.attachmentRepository.create({
       orderId,
-      fileName: file.originalname,
+      fileName,
       filePath: file.path,
       fileSize: file.size,
       mimeType: file.mimetype,

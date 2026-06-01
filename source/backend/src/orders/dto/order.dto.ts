@@ -64,6 +64,10 @@ export class UpdateOrderDto {
   @IsIn(['无需开票', '3%专票', '普票'], { message: '开票要求无效' })
   invoiceRequirement?: string;
 
+  @IsString()
+  @IsOptional()
+  invoiceNo?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)

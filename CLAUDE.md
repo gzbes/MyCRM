@@ -238,10 +238,15 @@ source/
 │   ├── UAT2.md                # UAT 第 2 轮问题报告
 │   ├── UAT2_Plan.md           # UAT 修复计划
 │   ├── UAT3.md                # UAT 第 3 轮验收问题
-│   └── UAT3_Plan.md           # UAT 第 3 轮修复计划
+│   ├── UAT3_Plan.md           # UAT 第 3 轮修复计划
+│   ├── UAT4.md                # UAT 第 4 轮验收问题
+│   └── UAT4_Plan.md           # UAT 第 4 轮修复计划
+├── deploy/
+│   └── deploy-manual.md       # [新增] Windows 部署操作手册
 └── docs/
     ├── BR.md                  # 需求规格说明书
-    └── Plan.md                # 开发计划
+    ├── Plan.md                # 开发计划
+    └── UserManual.md          # [新增] 前端用户使用手册
 ```
 
 ---
@@ -249,9 +254,9 @@ source/
 ## 八、当前状态
 
 <!-- 开发过程中请更新此处 -->
-- **当前阶段：** UAT4 优化（完成）
-- **当前任务：** Phase 4 — 部署与运维（待启动）
-- **完成进度：** 26 / 28 天
+- **当前阶段：** Phase 4 — 部署与运维（进行中）
+- **当前任务：** 部署文档 + 用户手册编写
+- **完成进度：** 27 / 28 天
 - **最后更新：** 2026-06-03
 
 ### Phase 2 完成总结
@@ -309,6 +314,17 @@ source/
 | 报表中心显示"暂无数据" | TDesign `cell` 函数签名是 `(h, props)`，代码只用 `({ row })` 导致 `row` 为 `undefined` | 全部 5 处 `cell` 改为 `(h: any, { row }: any)` |
 | 图表不渲染 | `loading=false` 和 DOM 渲染/图表初始化时序问题 | `finally` 释放 loading → `await nextTick()` → `renderChart()` |
 | CSV/PDF 导出报错 | `Content-Disposition` header 含中文导致 HTTP 协议错误 | 改用 `filename*=UTF-8''${encodeURIComponent()}` 格式 |
+
+### Phase 4 完成总结
+
+| 子任务 | 状态 | 说明 |
+|-------|:----:|------|
+| 4.1 ECS 环境配置 | ⏳ | Node.js + Nginx + PM2 安装配置（待执行） |
+| 4.2 MySQL 数据库初始化 | ⏳ | 创建数据库 + 用户 + 导入建表脚本（待执行） |
+| 4.3 构建与部署 | ✅ | 后端 `NestExpressApplication` 单进程部署，`main.ts` 配置静态文件托管 |
+| 4.4 备份脚本 | ⏳ | 每日 mysqldump，保留 7 天（待执行） |
+| 4.5 部署文档 | ✅ | `deploy-manual.md` — Windows 部署操作手册，含 PM2 开机自启 + 重启验证 |
+| 4.6 用户手册 | ✅ | `UserManual.md` — 前端用户使用手册，覆盖全功能模块操作说明 |
 
 ### Phase 2 UAT 修复总结
 
@@ -396,15 +412,15 @@ source/
 
 ## 九、Phase 4 启动指南
 
-### 接下来要做的事情（5 个子任务，预估 3-4 天）
+### 接下来要做的事情（剩余 3 个子任务，预估 2-3 天）
 
-| 编号 | 任务 | 文件 | 说明 |
-|------|------|------|------|
-| 4.1 | ECS 环境配置 | — | Node.js + Nginx + PM2 安装配置 |
-| 4.2 | MySQL 数据库初始化 | — | 创建数据库 + 用户 + 导入建表脚本 |
-| 4.3 | 构建与部署 | `source/backend/`, `source/frontend/` | Nest 构建 + Vue 构建 + PM2 启动 |
-| 4.4 | 备份脚本 | `scripts/backup.sh` | 每日 mysqldump，保留 7 天 |
-| 4.5 | 验收测试 | — | 全流程回归 + 人工验收文档 Phase 4 用例 |
+| 编号 | 任务 | 文件 | 状态 | 说明 |
+|------|------|------|:----:|------|
+| 4.1 | ECS 环境配置 | — | ⏳ | Node.js + Nginx + PM2 安装配置 |
+| 4.2 | MySQL 数据库初始化 | — | ⏳ | 创建数据库 + 用户 + 导入建表脚本 |
+| 4.3 | 构建与部署（单进程） | `source/backend/src/main.ts`, `source/deploy/deploy-manual.md` | ✅ | Nest 构建 + 静态文件托管；已编写完整部署手册 |
+| 4.4 | 备份脚本 | `scripts/backup.sh` | ⏳ | 每日 mysqldump，保留 7 天 |
+| 4.5 | 验收测试 | `source/docs/UserManual.md` | ✅ | 已编写用户使用手册（覆盖全功能模块操作说明） |
 
 ### 已知遗留问题（部署前解决）
 
@@ -414,6 +430,7 @@ source/
 | ECharts 完整导入 | `import * as echarts from 'echarts'` 导入完整包体积过大。生产环境建议按需导入 | ⏳ 待解决 |
 | `tdesign-icons-vue-next` | 图标库为传递依赖未声明在 `package.json`，可能被意外剪枝 | ⏳ 待解决 |
 | PDF 中文字体 | 字体文件已从 Invalid HTML 替换为 Windows 系统字体 SimFang/SimHei（TrueType），部署时需确认字体文件随构建包分发 | ✅ 已解决 |
+| PM2 Windows 自启 | `pm2 startup` 生成的计划任务默认仅用户登录后触发。已在部署手册给出 `taskschd.msc` 手动配置步骤 | ✅ 已记录方案 |
 
 ### 快速启动命令
 

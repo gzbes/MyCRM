@@ -153,3 +153,6 @@ uploads/
 
 # Fake/placeholder font files (real fonts: simfang.ttf, simhei.ttf)
 NotoSansSC-*
+
+# Database baseline data
+source/database/

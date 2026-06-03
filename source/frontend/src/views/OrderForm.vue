@@ -176,7 +176,7 @@
         <div class="form-actions">
           <t-space>
             <t-button theme="primary" type="submit" :loading="submitting">
-              {{ isEdit ? '保存修改' : '创建订单' }}
+              {{ isEdit ? '保存修改' : '保存' }}
             </t-button>
             <t-button variant="outline" @click="goBack">取消</t-button>
           </t-space>

@@ -308,7 +308,7 @@ export class ReportsService {
           // 表头
           doc.fontSize(10).font('SimHei');
           doc.text(
-            `订单: ${order.code}    日期: ${order.orderDate}    状态: ${order.orderStatus}`,
+            `订单: ${order.customerOrderNo || order.code}    日期: ${order.orderDate}    状态: ${order.orderStatus}`,
           );
           doc.fontSize(9).font('SimFang');
 

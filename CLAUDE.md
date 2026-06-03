@@ -249,10 +249,10 @@ source/
 ## 八、当前状态
 
 <!-- 开发过程中请更新此处 -->
-- **当前阶段：** UAT 3.2 功能增强（完成）
+- **当前阶段：** UAT4 优化（完成）
 - **当前任务：** Phase 4 — 部署与运维（待启动）
-- **完成进度：** 25 / 28 天
-- **最后更新：** 2026-06-01
+- **完成进度：** 26 / 28 天
+- **最后更新：** 2026-06-03
 
 ### Phase 2 完成总结
 
@@ -342,10 +342,12 @@ source/
 | **R7** | **PDF 对账单 JSON 化** | **BUG** | **NestJS `@Res({ passthrough: true })` 将 Buffer 序列化为 JSON** | [reports.controller.ts](source/backend/src/reports/reports.controller.ts) — `@Res()` + `res.send()` |
 
 **UAT 测试文档：**
-- [UAT2.md](source/UAT/UAT2.md) — 验收问题报告
-- [UAT2_Plan.md](source/UAT/UAT2_Plan.md) — 分析和修复计划
+- [UAT2.md](source/UAT/UAT2.md) — 第 2 轮验收问题报告
+- [UAT2_Plan.md](source/UAT/UAT2_Plan.md) — 第 2 轮修复计划
 - [UAT3.md](source/UAT/UAT3.md) — 第 3 轮验收问题
 - [UAT3_Plan.md](source/UAT/UAT3_Plan.md) — 第 3 轮修复计划
+- [UAT4.md](source/UAT/UAT4.md) — 第 4 轮验收问题
+- [UAT4_Plan.md](source/UAT/UAT4_Plan.md) — 第 4 轮修复计划
 
 ### UAT 第 3 轮（18 项：产品 3 + 客户 4 + 订单 11）
 
@@ -382,6 +384,13 @@ source/
 | E5 | 发货产品级数量 | 功能新增 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue), [order.ts](source/frontend/src/api/order.ts) | 发货对话框展示订单所有产品行的订单数量+可编辑送货数量；保存 `items[]` 明细；列表展示 `产品×数量` 摘要 |
 | E6 | 列表收款弹出对话框 | 功能增强 | [Orders.vue](source/frontend/src/views/Orders.vue) | 列表页选择"部分收款"/"已结清"时弹出金额/方式/日期对话框，与详情页一致 |
 | E7 | 移除所有 +/- 按钮 | UI 优化 | [OrderDetail.vue](source/frontend/src/views/OrderDetail.vue), [Orders.vue](source/frontend/src/views/Orders.vue) | 全部 `t-input-number` 设 `theme="normal"`（配送数量/运费/收款金额）；Products.vue 已有 `hide-button` |
+
+### UAT 第 4 轮（2 项优化）
+
+| 编号 | 需求 | 类型 | 涉及文件 | 说明 |
+|:----:|------|:----:|---------|------|
+| O1 | 按钮文本"创建订单"→"保存" | UI 文本 | [OrderForm.vue](source/frontend/src/views/OrderForm.vue) | 新建订单页面提交按钮文本统一为"保存" |
+| O2 | PDF 对账单显示客户单号 | 功能优化 | [reports.service.ts](source/backend/src/reports/reports.service.ts) | 对账单 PDF 订单编号优先显示 `customerOrderNo`，无客户单号时降级为内部 `code` |
 
 ---
 

@@ -21,6 +21,9 @@
     "seed": "npx ts-node src/seed.ts",
     "migrate": "npx ts-node src/migrate-data.ts"
   },
+  "overrides": {
+    "libphonenumber-js": "1.13.4"
+  },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",

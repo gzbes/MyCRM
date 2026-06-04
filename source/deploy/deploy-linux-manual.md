@@ -814,7 +814,29 @@ cd /data/MyCRM/source/backend && npx nest build && pm2 restart mycrm-backend
    chmod 644 /data/MyCRM/source/backend/assets/fonts/*.ttf
    ```
 
-### Q9: PM2 开机自启不生效
+### Q9: `npm install` 报错 `404 Not Found - libphonenumber-js`
+
+**原因：** npmmirror 镜像与官方 npm 仓库同步存在延迟。`package-lock.json` 中锁定的 `libphonenumber-js` 版本（如 `1.13.5`）在 npmmirror 上可能尚未同步，最高可用版本为 `1.13.4`。
+
+**解决：**
+
+```bash
+# 方案一：使用官方 npm 仓库（推荐，国内服务器亦可正常访问）
+npm config set registry https://registry.npmjs.org
+npm install
+
+# 方案二：如需继续使用 npmmirror，可在 package.json 中添加 overrides
+# 手工编辑 package.json，添加以下内容：
+#   "overrides": {
+#     "libphonenumber-js": "1.13.4"
+#   }
+# 然后重新安装：
+npm install
+```
+
+> `libphonenumber-js` 是 `class-validator` 的传递依赖，用于 `@IsPhoneNumber()` 校验装饰器。`1.13.4` 完全满足 `class-validator@0.14.x` 的 `^1.11.1` 版本要求。
+
+### Q10: PM2 开机自启不生效
 
 **原因：** `pm2 startup` 生成的脚本可能未正确执行。
 
@@ -834,7 +856,7 @@ systemctl restart pm2-root
 pm2 list   # 应显示 mycrm-backend 为 online
 ```
 
-### Q10: 端口被占用
+### Q11: 端口被占用
 
 **原因：** 3000 端口或其他端口已被其他进程占用。
 
@@ -846,7 +868,7 @@ ss -tlnp | grep 3000
 # 如端口被占用，可修改 .env 中的 PORT，或停用冲突进程
 ```
 
-### Q11: Git pull 报错 `failed to connect to github.com`
+### Q12: Git pull 报错 `failed to connect to github.com`
 
 **原因：** 服务器 DNS 问题或网络不通。
 
@@ -862,7 +884,7 @@ git pull
 git config --global --unset url."https://ghproxy.com/".insteadOf
 ```
 
-### Q12: 服务器重启后忘记 PM2 保存
+### Q13: 服务器重启后忘记 PM2 保存
 
 **解决：**
 ```bash

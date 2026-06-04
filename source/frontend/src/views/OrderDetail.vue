@@ -686,10 +686,9 @@ function formatFileSize(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
-// 从文件路径中提取文件名
+// 从文件路径中提取文件名（兼容 Windows 反斜杠和 Linux 正斜杠）
 function getFilePath(filePath: string): string {
-  const parts = filePath.split('\\').pop() || filePath.split('/').pop() || filePath
-  return parts
+  return filePath.replace(/\\/g, '/').split('/').pop() || filePath
 }
 
 // 预览附件（通过 axios 获取 blob，在新标签页打开）

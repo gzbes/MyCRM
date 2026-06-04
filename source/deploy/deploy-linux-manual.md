@@ -982,6 +982,37 @@ uploadAttachment(orderId: number, file: File) {
 
 **验证：** 修改后重新构建前端并部署，上传附件应正常完成。大文件（如 5-10 MB 的 PDF）上传过程中，进度条可能停留数秒后完成，属于正常现象。
 
+### Q15: 上传成功但附件预览/下载返回 404
+
+**问题现象：** 附件可以成功上传（数据库有记录，磁盘有文件），但在附件列表中点击"预览"或"下载"按钮，浏览器控制台报 `Request failed with status code 404`。
+
+**根因分析：**
+`OrderDetail.vue` 中的 `getFilePath()` 函数用于从数据库存储的绝对路径中提取纯文件名。原代码为：
+
+```typescript
+// ❌ 问题代码：Windows 正常，Linux 失败
+function getFilePath(filePath: string): string {
+  const parts = filePath.split('\\').pop() || filePath.split('/').pop() || filePath
+  return parts
+}
+```
+
+- **Windows**（反斜杠路径 `d:\...\uploads\orders\1\file.jpg`）：`split('\\')` 正确切分，`.pop()` 拿到文件名
+- **Linux**（正斜杠路径 `/data/.../uploads/orders/1/file.jpg`）：路径中无 `\`，`split('\\')` 返回 `['/data/.../file.jpg']`（单元素数组），`.pop()` 返回**整个路径字符串**（非空，truthy），导致 `||` 短路，不会执行到 `split('/').pop()`。于是最终 filename 是整个路径，拼接出的 URL 不合法，后端返回 404
+
+**修复方法（前端代码修改）：**
+
+修改 `OrderDetail.vue` 中的 `getFilePath()` 函数，先统一将反斜杠替换为正斜杠再切分：
+
+```typescript
+// ✅ 修复：先归一化路径分隔符，再提取文件名
+function getFilePath(filePath: string): string {
+  return filePath.replace(/\\/g, '/').split('/').pop() || filePath
+}
+```
+
+**验证：** 修改后重新构建前端并部署，附件预览和下载应正常响应。
+
 ---
 
 ## 附录 A：目录结构参考

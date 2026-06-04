@@ -150,7 +150,8 @@ export const orderApi = {
     const formData = new FormData()
     formData.append('file', file)
     // 不显式设置 Content-Type，让 axios 自动带 boundary
-    return api.post<any, AttachmentData>(`/orders/${orderId}/attachments`, formData)
+    // 文件上传通常较慢，设置 60s 超时（Linux 部署环境下 Nginx 代理可能增加延迟）
+    return api.post<any, AttachmentData>(`/orders/${orderId}/attachments`, formData, { timeout: 60000 })
   },
 
   deleteAttachment(orderId: number, attachmentId: number) {

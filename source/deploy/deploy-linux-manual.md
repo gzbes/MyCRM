@@ -283,8 +283,6 @@ exit;
 mysql -u root -p mycrm -e "SELECT '连接成功' AS status;"
 ```
 
-> **注意：** 此时数据库 `mycrm` 已创建但**尚为空（0 张表）**。数据表将在 §7.4 的种子脚本中自动创建，无需手动建表。
-
 > 如希望使用非 root 用户（推荐），可创建专用用户：
 > ```sql
 > CREATE USER 'mycrm'@'localhost' IDENTIFIED BY '你的密码';
@@ -402,7 +400,7 @@ npm run build
 >
 > 2. **扩大 V8 堆上限**——如果跳过 `vue-tsc` 后仍报 OOM，显式分配更多内存：
 >    ```bash
->    NODE_OPTIONS="--max-old-space-size=2048" npx vite build
+>    NODE_OPTIONS="--max-old-space-size=1352" npx vite build
 >    ```
 >
 > 3. **直接在前端项目的 `package.json` 中永久修改构建命令**（一劳永逸）：
@@ -424,40 +422,6 @@ ls -la /data/MyCRM/source/backend/dist/
 ls -la /data/MyCRM/source/frontend/dist/
 # 应包含 index.html, assets/ 等
 ```
-
-### 7.4 初始化数据库（建表 + 种子数据）
-
-**这是首次部署的关键步骤！** 生产环境下后端不会自动建表，必须通过种子脚本创建。
-
-```bash
-cd /data/MyCRM/source/backend
-npx ts-node src/seed.ts
-```
-
-种子脚本执行以下操作：
-1. 自动创建全部 7 张数据表（`users`、`customers`、`products`、`orders`、`order_items`、`status_logs`、`attachments`）
-2. 创建默认管理员账号
-
-**验证数据库初始化：**
-
-```bash
-# 检查表是否已创建
-mysql -u root -p mycrm -e "SHOW TABLES;"
-# 应显示 7 张表
-
-# 检查管理员账号是否存在
-mysql -u root -p mycrm -e "SELECT id, email, name, role FROM users;"
-# 应显示 admin@no-crm.com
-```
-
-> **管理端默认账号：**
-> - 邮箱：`admin@no-crm.com`
-> - 密码：`admin123`
->
-> 首次登录后请在用户管理中修改密码。
-
-> **关于 `synchronize: true`：** 种子脚本内部使用 `synchronize: true` 自动建表，因此会覆盖已有表结构。
-> 日常运维时直接重启后端即可，**不要重复运行种子脚本**（会清空数据重建）。
 
 ---
 
@@ -560,7 +524,7 @@ vi /etc/nginx/conf.d/mycrm.conf
 ```nginx
 server {
     listen 80;
-    server_name _;  # 替换为你的域名，如 mycrm.example.com
+    server_name 8.134.171.237;  # 替换为你的域名，如 mycrm.example.com
 
     # 前端静态文件（可选，利用 Nginx 缓存加速）
     # 如不需要单独缓存，可直接将所有请求代理到后端 3000 端口
@@ -994,6 +958,30 @@ pm2 start dist/main.js --name mycrm-backend
 pm2 save   # ← 务必执行，否则下次重启仍需手动启动
 ```
 
+### Q14: 上传附件报错 "timeout of 10000ms exceeded"
+
+**问题现象：** 在订单编辑页面上传附件（JPG/PNG/PDF），本地开发环境正常，部署到 Linux 服务器后上传失败，浏览器控制台报错 `timeout of 10000ms exceeded`。
+
+**根因分析：**
+1. 前端 axios 全局超时配置为 10 秒（`frontend/src/api/index.ts:7`）
+2. 文件上传通过 Nginx 反向代理转发到后端，Nginx 代理层会增加额外的延迟
+3. 较大的文件（如几 MB 的 PDF 或高分辨率图片）在服务器间传输可能超过 10 秒
+4. 后端 Multer 配置的 `fileSize: 10MB` 与 Nginx 的 `client_max_body_size 20M` 均已正确设置，超时是唯一瓶颈
+
+**修复方法（前端代码修改）：**
+
+修改 `frontend/src/api/order.ts` 中的 `uploadAttachment()` 方法，为上传请求单独设置 60 秒超时：
+
+```typescript
+uploadAttachment(orderId: number, file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post<any, AttachmentData>(`/orders/${orderId}/attachments`, formData, { timeout: 60000 })
+},
+```
+
+**验证：** 修改后重新构建前端并部署，上传附件应正常完成。大文件（如 5-10 MB 的 PDF）上传过程中，进度条可能停留数秒后完成，属于正常现象。
+
 ---
 
 ## 附录 A：目录结构参考
@@ -1077,19 +1065,13 @@ chmod 600 .env
 cd source/backend && npm install && npx nest build
 cd ../frontend && npm install && npx vite build   # 注意: 用 vite build 跳过 vue-tsc 避免 OOM
 
-# 8. 初始化数据库（首次部署必须！创建表 + 默认管理员）
-cd ../backend && npx ts-node src/seed.ts
-
-# 验证表已创建
-mysql -u root -p mycrm -e "SHOW TABLES;"
-
-# 9. 启动
+# 8. 启动
 cd ../backend
 NODE_ENV=production pm2 start dist/main.js --name mycrm-backend
 pm2 save
 pm2 startup   # → 按提示执行生成的命令
 
-# 10. 验证
+# 9. 验证
 curl http://localhost:3000/api
 
 # ===== 更新代码 =====

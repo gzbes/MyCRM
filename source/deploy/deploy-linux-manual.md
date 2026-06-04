@@ -45,9 +45,12 @@
 | Node.js (NestJS) | 1-3% | ~150 MB | 代码 < 50 MB，`node_modules` ~350 MB |
 | 前端静态文件 | 0% | 0 MB（Nginx 托管） | ~3 MB |
 | Nginx | < 1% | ~30 MB | ~10 MB |
-| **合计** | **< 15%** | **~1 GB** | **< 500 MB**（不含数据库增长） |
+| **合计**（运行态） | **< 15%** | **~1 GB** | **< 500 MB**（不含数据库增长） |
+| **前端构建**（临时） | 100%（短时峰值） | **+1~1.5 GB** | 临时占用 |
 
-> **结论：** 阿里云 2 核 2 GB 40 GB 的 ECS 实例**完全满足**部署需求，资源充裕。
+> **注意：** 前端构建默认执行 `vue-tsc && vite build`。`vue-tsc` TypeScript 类型检查会先消耗约 800 MB Node.js V8 堆内存，然后 `vite build`（打包全量 ECharts）再叠加，**超过 V8 默认堆上限（~1.4 GB）**，导致 `FATAL ERROR: JavaScript heap out of memory`。
+>
+> **解决方法：** 跳过 `vue-tsc` 直接执行 `npx vite build`（类型检查对生产构建非必需），详见 §7.2。
 
 ---
 
@@ -66,7 +69,43 @@ dnf update -y
 dnf install -y curl wget git
 ```
 
-### 2.3 安装 Node.js v22 LTS
+### 2.3 配置交换空间（swap）
+
+swap 是**物理内存不足**时的应急方案。本项目前端构建的主要瓶颈是 **Node.js V8 堆内存上限**（见 §7.2），swap 无法解决该问题。但 swap 仍有以下价值：
+- 防止物理内存耗尽时 OOM killer 误杀进程
+- 为同时运行 MySQL + 构建 + 其他服务提供缓冲
+
+推荐配置，尤其当服务器还运行其他服务时：
+
+```bash
+# 创建 2 GB 交换文件
+fallocate -l 2G /swapfile
+
+# 设置权限（仅 root 可读写）
+chmod 600 /swapfile
+
+# 格式化为交换空间
+mkswap /swapfile
+
+# 启用交换空间
+swapon /swapfile
+
+# 验证生效
+free -h
+# 预期输出中 Swap: 一行应显示 total 为 2.0G
+
+# 写入 /etc/fstab 实现开机自动挂载
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+# 验证 fstab 配置
+tail -1 /etc/fstab
+```
+
+**swap 使用建议：**
+- 正常运行时 swap 使用量应为 `0`（说明物理内存充足）
+- 仅在前端构建期间短期内出现 swap 使用是正常的（但若构建报 `heap out of memory`，swap 帮不上忙，应使用 §7.2 的方案）
+
+### 2.4 安装 Node.js v22 LTS
 
 使用 NodeSource 官方仓库安装（推荐，版本可控）：
 
@@ -94,7 +133,7 @@ npm --version    # 预期 10.x.x
 > node --version
 > ```
 
-### 2.4 安装中文字体（替代 Windows SimFang/SimHei）
+### 2.5 安装中文字体（替代 Windows SimFang/SimHei）
 
 项目 PDF 对账单功能需要中文字体。在 Linux 上使用 Google Noto Sans CJK 替代 Windows 字体：
 
@@ -123,14 +162,14 @@ cp /usr/share/fonts/google-noto-cjk/NotoSansCJKsc-Regular.otf /data/MyCRM/source
 
 > **后续步骤：** 部署完成后，需修改 `reports.service.ts` 中的字体路径指向 Noto 字体（详见 §12 Q8）。
 
-### 2.5 安装 PM2 进程管理器
+### 2.6 安装 PM2 进程管理器
 
 ```bash
 npm install -g pm2
 pm2 --version   # 验证安装
 ```
 
-### 2.6 配置防火墙
+### 2.7 配置防火墙
 
 ```bash
 # 查看防火墙状态
@@ -316,13 +355,14 @@ npm install
 # 使用阿里云 npm 镜像（推荐）
 npm config set registry https://registry.npmmirror.com
 npm install
+npx nest build
 ```
 
 ### 6.2 安装前端依赖
 
 ```bash
 cd /data/MyCRM/source/frontend
-npm install
+npm run build
 ```
 
 ---
@@ -346,6 +386,30 @@ npm run build
 ```
 
 构建成功后，静态文件生成到 `dist/` 目录。
+
+> **常见问题：构建报 `FATAL ERROR: JavaScript heap out of memory`**
+>
+> **根因：** 默认构建命令 `vue-tsc && vite build` 中，`vue-tsc` 类型检查先消耗约 800 MB V8 堆内存，`vite build` 打包全量 ECharts 再叠加，**超出 Node.js V8 默认堆上限（~1.4 GB）**。
+>
+> **解决方法（按优先级）：**
+
+> 1. **跳过 `vue-tsc` 类型检查（最有效，推荐）**——类型检查对生产构建非必需：
+>    ```bash
+>    npx vite build
+>    ```
+>
+> 2. **扩大 V8 堆上限**——如果跳过 `vue-tsc` 后仍报 OOM，显式分配更多内存：
+>    ```bash
+>    NODE_OPTIONS="--max-old-space-size=2048" npx vite build
+>    ```
+>
+> 3. **直接在前端项目的 `package.json` 中永久修改构建命令**（一劳永逸）：
+>    将 `"build": "vue-tsc && vite build"` 改为 `"build": "vite build"`，后续直接 `npm run build` 即可。
+
+> **关于 "内存不足" 的常见误区：**
+> - ❌ 以为 swap 能解决：`heap out of memory` 是 V8 引擎内部的堆内存限制，swap 无法扩容 V8 堆
+> - ❌ 以为停止 MySQL 有用：物理内存空余很多（实测 1319 MB 空闲），瓶颈在 V8 堆上限而非物理内存
+> - ✅ 真正方案：跳过 `vue-tsc` 或增大 `--max-old-space-size`
 
 ### 7.3 验证构建产物
 
@@ -646,7 +710,7 @@ pm2 monit
 cd /data/MyCRM
 git pull
 cd source/backend && npm install && npx nest build
-cd ../frontend && npm install && npm run build
+cd ../frontend && npm install && npx vite build   # 跳过 vue-tsc 避免 OOM
 pm2 restart mycrm-backend
 ```
 
@@ -937,6 +1001,11 @@ dnf update -y
 dnf install -y curl wget git
 curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -
 dnf install -y nodejs
+
+# 配置交换空间（推荐，物理内存不足时的缓冲）
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
 npm install -g pm2
 
 # 2. 获取代码
@@ -970,7 +1039,7 @@ chmod 600 .env
 
 # 7. 安装依赖 + 构建
 cd source/backend && npm install && npx nest build
-cd ../frontend && npm install && npm run build
+cd ../frontend && npm install && npx vite build   # 注意: 用 vite build 跳过 vue-tsc 避免 OOM
 
 # 8. 启动
 cd ../backend
@@ -985,7 +1054,7 @@ curl http://localhost:3000/api
 cd /data/MyCRM
 git pull
 cd source/backend && npm install && npx nest build
-cd ../frontend && npm install && npm run build
+cd ../frontend && npm install && npx vite build   # 跳过 vue-tsc 避免 OOM
 pm2 restart mycrm-backend
 
 # ===== 查看日志 =====

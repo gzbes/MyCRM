@@ -427,7 +427,7 @@ source/
 | 问题 | 说明 | 状态 |
 |------|------|:----:|
 | `env.d.ts` 缺失 | `source/frontend/src/` 缺少 `.d.ts` 文件声明 `.vue` 模块。Vite 内置类型处理，`vue-tsc --noEmit` 通过无需额外声明 | ✅ 不阻塞 |
-| ECharts 完整导入 | `import * as echarts from 'echarts'` 导入完整包体积过大。生产环境建议按需导入 | ⏳ 待解决 |
+| ECharts 完整导入 | `import * as echarts from 'echarts'` → 改为 tree-shaking（`echarts/core` + `use()` 按需注册组件）。`Dashboard.vue` 和 `Reports.vue` 已改造 | ✅ 已解决 |
 | `tdesign-icons-vue-next` | 图标库为传递依赖未声明在 `package.json`，可能被意外剪枝 | ⏳ 待解决 |
 | PDF 中文字体 | 字体文件已从 Invalid HTML 替换为 Windows 系统字体 SimFang/SimHei（TrueType），部署时需确认字体文件随构建包分发 | ✅ 已解决 |
 | PM2 Windows 自启 | `pm2 startup` 生成的计划任务默认仅用户登录后触发。已在部署手册给出 `taskschd.msc` 手动配置步骤 | ✅ 已记录方案 |

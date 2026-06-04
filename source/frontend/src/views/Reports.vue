@@ -131,7 +131,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
-import * as echarts from 'echarts'
+import { init, ECharts, graphic, use } from 'echarts/core'
+import { BarChart, LineChart, PieChart } from 'echarts/charts'
+import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+use([BarChart, LineChart, PieChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 import { reportsApi, type ProductReportItem, type CustomerReportItem, type TimeReportItem, type StatusReportItem } from '@/api/reports'
 
 const activeTab = ref('product')
@@ -157,11 +161,11 @@ const orderStatusChartRef = ref<HTMLElement>()
 const invoiceStatusChartRef = ref<HTMLElement>()
 const paymentStatusChartRef = ref<HTMLElement>()
 
-let productChart: echarts.ECharts | null = null
-let timeChart: echarts.ECharts | null = null
-const orderStatusChart = { current: null as echarts.ECharts | null }
-const invoiceStatusChart = { current: null as echarts.ECharts | null }
-const paymentStatusChart = { current: null as echarts.ECharts | null }
+let productChart: ECharts | null = null
+let timeChart: ECharts | null = null
+const orderStatusChart = { current: null as ECharts | null }
+const invoiceStatusChart = { current: null as ECharts | null }
+const paymentStatusChart = { current: null as ECharts | null }
 
 // ── 列定义 ──
 const productColumns = [
@@ -279,7 +283,7 @@ function onGroupByChange(value: 'day' | 'week' | 'month') {
 function renderProductChart() {
   if (!productChartRef.value || productData.value.length === 0) return
   if (productChart) productChart.dispose()
-  productChart = echarts.init(productChartRef.value)
+  productChart = init(productChartRef.value)
 
   const top10 = productData.value.slice(0, 10).reverse()
   productChart.setOption({
@@ -299,7 +303,7 @@ function renderProductChart() {
         type: 'bar',
         data: top10.map(r => r.totalAmount),
         itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          color: new graphic.LinearGradient(0, 0, 1, 0, [
             { offset: 0, color: '#43e97b' },
             { offset: 1, color: '#38f9d7' },
           ]),
@@ -318,7 +322,7 @@ function renderProductChart() {
 function renderTimeChart() {
   if (!timeChartRef.value || timeData.value.length === 0) return
   if (timeChart) timeChart.dispose()
-  timeChart = echarts.init(timeChartRef.value)
+  timeChart = init(timeChartRef.value)
 
   timeChart.setOption({
     title: { text: '营收趋势', left: 'center' },
@@ -384,10 +388,10 @@ function renderStatusCharts() {
   renderSinglePie(paymentStatusChartRef.value, paymentStatusChart, 'payment')
 }
 
-function renderSinglePie(refEl: HTMLElement | undefined, chartVar: { current: echarts.ECharts | null }, type: string) {
+function renderSinglePie(refEl: HTMLElement | undefined, chartVar: { current: ECharts | null }, type: string) {
   if (!refEl) return
   if (chartVar.current) chartVar.current.dispose()
-  const chart = echarts.init(refEl)
+  const chart = init(refEl)
   chartVar.current = chart
 
   const filtered = statusData.value.filter(r => r.statusType === type)

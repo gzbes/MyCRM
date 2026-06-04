@@ -74,7 +74,11 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import * as echarts from 'echarts'
+import { init, ECharts, graphic, use } from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { TooltipComponent, GridComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+use([LineChart, TooltipComponent, GridComponent, CanvasRenderer])
 import api from '@/api'
 import { reportsApi } from '@/api/reports'
 
@@ -85,7 +89,7 @@ const todayStr = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month
 const loading = ref(false)
 const orderLoading = ref(false)
 const trendChartRef = ref<HTMLElement>()
-let trendChart: echarts.ECharts | null = null
+let trendChart: ECharts | null = null
 
 // ── 关键指标 ──
 const statsCards = ref([
@@ -185,7 +189,7 @@ async function loadDashboard() {
 function renderTrendChart(data: { period: string; receivedAmount: number }[]) {
   if (!trendChartRef.value) return
   if (trendChart) trendChart.dispose()
-  trendChart = echarts.init(trendChartRef.value)
+  trendChart = init(trendChartRef.value)
 
   trendChart.setOption({
     tooltip: { trigger: 'axis' },
@@ -207,7 +211,7 @@ function renderTrendChart(data: { period: string; receivedAmount: number }[]) {
         data: data.map(r => r.receivedAmount),
         itemStyle: { color: '#43e97b' },
         areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          color: new graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(67, 233, 123, 0.3)' },
             { offset: 1, color: 'rgba(67, 233, 123, 0.05)' },
           ]),

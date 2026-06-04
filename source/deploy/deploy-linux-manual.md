@@ -114,10 +114,11 @@ fc-list | grep -i "noto.*cjk" | head -5
 mkdir -p /data/MyCRM/source/backend/assets/fonts
 
 # 从系统字体目录复制 Noto 字体到项目目录
-cp /usr/share/fonts/google-noto-sans-cjk-sc/NotoSansCJKsc-Regular.otf \
-   /data/MyCRM/source/backend/assets/fonts/
-cp /usr/share/fonts/google-noto-sans-cjk-sc/NotoSansCJKsc-Bold.otf \
-   /data/MyCRM/source/backend/assets/fonts/
+cp /usr/share/fonts/google-noto-cjk/NotoSansCJKsc-Thin.otf    /data/MyCRM/source/backend/assets/fonts/
+cp /usr/share/fonts/google-noto-cjk/NotoSansCJKsc-Black.otf    /data/MyCRM/source/backend/assets/fonts/
+cp /usr/share/fonts/google-noto-cjk/NotoSansCJKsc-Light.otf    /data/MyCRM/source/backend/assets/fonts/
+cp /usr/share/fonts/google-noto-cjk/NotoSansCJKsc-DemiLight.otf    /data/MyCRM/source/backend/assets/fonts/
+cp /usr/share/fonts/google-noto-cjk/NotoSansCJKsc-Regular.otf /data/MyCRM/source/backend/assets/fonts/  
 ```
 
 > **后续步骤：** 部署完成后，需修改 `reports.service.ts` 中的字体路径指向 Noto 字体（详见 §12 Q8）。
@@ -720,16 +721,29 @@ dnf install -y mysql-community-server --nogpgcheck
 
 ### Q5: `npx nest build` 报错找不到模块
 
-**原因：** 依赖未安装完整或 `node_modules` 损坏。
+**原因：** `package.json` 的 `dependencies` 中遗漏了某些运行时依赖（如 `@nestjs/jwt`、`class-validator`、`bcrypt` 等）。本地开发机因 `node_modules` 中残留了旧版依赖而可用，但服务器是全新安装，这些包不会被装上。
+
+**确认方法：** 查看报错中的模块名，去 `package.json` 中搜索确认：
+```bash
+# 例如检查 uuid 是否在 package.json 中
+grep '"uuid"' /data/MyCRM/source/backend/package.json
+# 如果无输出，就是遗漏了
+```
 
 **解决：**
 ```bash
+# 1. 先在本地开发机将缺失的包补全到 package.json 的 dependencies 中
+# 2. 提交 git 并拉取到服务器
+cd /data/MyCRM
+git pull
+
+# 3. 重新安装（本次会安装新增的依赖）
 cd /data/MyCRM/source/backend
-rm -rf node_modules
-npm cache clean --force
 npm install
 npx nest build
 ```
+
+> **不要**简单 `rm -rf node_modules` 重试——如果 `package.json` 没补全，删了重装一样缺少这些包。
 
 ### Q6: 前端页面空白或请求 404
 
